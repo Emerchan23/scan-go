@@ -183,18 +183,7 @@ function AdminPage() {
 
         {/* Settings */}
         <div className="mt-8 grid gap-4 md:grid-cols-2">
-          <div className="rounded-3xl border border-border bg-card p-5 shadow-soft">
-            <h2 className="font-serif text-2xl">Pagamentos</h2>
-            <p className="text-sm text-muted-foreground">O dinheiro cai direto na sua conta. A FestaCash não custodia valores.</p>
-            <div className="mt-4 space-y-2">
-              {[["Mercado Pago", "conectado"], ["Pix", "conectado"], ["Stripe", "configurar"]].map(([k, v]) => (
-                <div key={k} className="flex items-center justify-between rounded-xl bg-secondary px-4 py-3 text-sm">
-                  <span className="font-semibold">{k}</span>
-                  <span className={`text-xs font-semibold ${v === "conectado" ? "text-success" : "text-muted-foreground"}`}>{v}</span>
-                </div>
-              ))}
-            </div>
-          </div>
+          <SplitCard />
           <PolicyCard />
         </div>
         <PolicyExplainer />

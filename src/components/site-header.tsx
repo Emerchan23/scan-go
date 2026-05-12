@@ -5,6 +5,7 @@ const items = [
   { to: "/cliente", label: "Cliente" },
   { to: "/barraca", label: "Barraca" },
   { to: "/admin", label: "Admin" },
+  { to: "/owner", label: "Owner" },
 ];
 
 export function SiteHeader() {

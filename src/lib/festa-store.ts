@@ -85,6 +85,12 @@ export function chargeProduct(productId: string) {
   return { product: p, balance: s.user.balance };
 }
 
+export function setPlatformFee(fee: number) {
+  const s = read();
+  s.platformFee = Math.max(0, Math.min(0.1, fee));
+  write(s);
+}
+
 export function reset() {
   if (typeof window !== "undefined") localStorage.removeItem(KEY);
   write(initial);

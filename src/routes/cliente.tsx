@@ -4,8 +4,10 @@ import { AnimatePresence, motion } from "framer-motion";
 import { QRCodeSVG } from "qrcode.react";
 import { AlertTriangle, Bell, ChevronRight, Clock, History, Home, Info, Plus, QrCode as QrIcon, Search, Send, ShoppingBag } from "lucide-react";
 
-import { addCredits, requestRefund, transfer, useStore, type Product, type ProductKind } from "@/lib/festa-store";
+import { addCredits, convertBalanceToWallet, requestRefund, transfer, useStore, type Product, type ProductKind, type Wallet } from "@/lib/festa-store";
 import { InstallPrompt } from "@/components/install-prompt";
+import { Receipt as WalletReceipt, PrintStyles } from "@/routes/caixa";
+import { WifiOff, Download as DownloadIcon } from "lucide-react";
 
 export const Route = createFileRoute("/cliente")({
   head: () => ({

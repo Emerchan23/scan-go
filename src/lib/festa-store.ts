@@ -226,6 +226,15 @@ const initial: State = {
   ],
   wallets: [],
   sales: [],
+  roles: builtInRoles,
+  staff: [
+    { id: "staff_admin", name: "Marcos (Organizador)", pin: "1234", roleId: "role_admin", active: true, createdAt: Date.now() },
+    { id: "staff_caixa", name: "Bia (Bilheteria)",     pin: "2222", roleId: "role_caixa", active: true, createdAt: Date.now() },
+    { id: "staff_barr",  name: "Seu Zé (Churrasco)",   pin: "3333", roleId: "role_barraca", active: true, createdAt: Date.now() },
+  ],
+  refundRequests: [],
+  refundLogs: [],
+  sessionStaffId: null,
 };
 
 function read(): State {

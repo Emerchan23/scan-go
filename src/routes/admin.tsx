@@ -188,6 +188,8 @@ function AdminPage() {
         </div>
         <PolicyExplainer />
 
+        <RefundsApprovalSection />
+
         <BarracasManager />
 
         {/* Folders / QR para imprimir */}

@@ -188,6 +188,9 @@ function AdminPage() {
         </div>
         <PolicyExplainer />
 
+        <SalesControlCard />
+        <StockManager />
+
         <RefundsApprovalSection />
 
         <BarracasManager />

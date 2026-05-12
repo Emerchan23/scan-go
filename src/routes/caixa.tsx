@@ -4,6 +4,7 @@ import { QRCodeCanvas, QRCodeSVG } from "qrcode.react";
 import { Banknote, Download, FileDown, Printer, ScanLine, Search, ShieldAlert, Undo2, X } from "lucide-react";
 import { jsPDF } from "jspdf";
 import { SiteHeader } from "@/components/site-header";
+import { InstallPrompt } from "@/components/install-prompt";
 import { Bunting } from "@/components/bunting";
 import { closeShift, createRefundRequest, executeRefund, getOpenShift, issueWallet, openShift, searchSales, useStore, type CashShift, type Sale, type Wallet } from "@/lib/festa-store";
 
@@ -268,6 +269,7 @@ function CaixaPage() {
       </main>
 
       <PrintStyles />
+      <InstallPrompt appName="FestaCash Caixa" />
     </div>
   );
 }

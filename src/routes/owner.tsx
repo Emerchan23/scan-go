@@ -3,6 +3,7 @@ import { useState } from "react";
 import { SiteHeader } from "@/components/site-header";
 import { Bunting } from "@/components/bunting";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { setPlatformFee, useStore } from "@/lib/festa-store";
 
 export const Route = createFileRoute("/owner")({
   head: () => ({
@@ -199,6 +200,9 @@ function OwnerPage() {
             </table>
           </div>
         </div>
+
+        {/* Monetização & Split */}
+        <SplitSection tenants={TENANTS} />
 
         {/* Bottom row: plans + activity + system health */}
         <div className="mt-8 grid gap-4 lg:grid-cols-3">

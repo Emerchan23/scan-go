@@ -61,6 +61,40 @@ function AdminPage() {
           <Kpi label="Ticket médio" value={`R$ ${s.sales.length ? Math.round(totalConsumed / s.sales.length) : 0}`} />
         </div>
 
+        {/* Faturamento — split Mercado Pago */}
+        {(() => {
+          const fee = s.platformFee ?? 0.02;
+          const platformCut = Math.round(totalSold * fee * 100) / 100;
+          const yourCut = Math.round((totalSold - platformCut) * 100) / 100;
+          return (
+            <div className="mt-6 rounded-3xl border-2 border-foreground bg-card p-6 shadow-pop">
+              <div className="flex items-start justify-between gap-4 flex-wrap">
+                <div>
+                  <h2 className="font-serif text-2xl">Faturamento da festa</h2>
+                  <p className="text-sm text-muted-foreground">Cada compra de crédito é dividida automaticamente via Mercado Pago. Você não precisa fazer nada.</p>
+                </div>
+                <span className="rounded-full bg-success/15 px-3 py-1 text-xs font-semibold text-success">✓ Split ativo</span>
+              </div>
+
+              <div className="mt-5 grid gap-3 md:grid-cols-3">
+                <div className="rounded-2xl bg-secondary p-5">
+                  <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Bruto vendido</div>
+                  <div className="font-display text-3xl mt-1">R$ {totalSold.toLocaleString("pt-BR")}</div>
+                </div>
+                <div className="rounded-2xl bg-muted p-5">
+                  <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Taxa FestaCash ({(fee * 100).toFixed(1)}%)</div>
+                  <div className="font-display text-3xl mt-1">− R$ {platformCut.toLocaleString("pt-BR")}</div>
+                </div>
+                <div className="rounded-2xl bg-success/15 p-5 ring-2 ring-success/30">
+                  <div className="text-xs font-semibold uppercase tracking-wider text-success">Vai pra sua conta</div>
+                  <div className="font-display text-3xl mt-1 text-success">R$ {yourCut.toLocaleString("pt-BR")}</div>
+                  <div className="text-xs text-muted-foreground mt-1">Mercado Pago · CNPJ ****/0001-23</div>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
         {/* Charts */}
         <div className="mt-8 grid gap-4 lg:grid-cols-[1.4fr_1fr]">
           <div className="rounded-3xl border border-border bg-card p-5 shadow-soft">

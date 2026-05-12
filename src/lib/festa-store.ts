@@ -12,11 +12,14 @@ type State = {
   products: Product[];
   sales: Sale[];
   event: { name: string; date: string; org: string };
+  /** Taxa da plataforma (split). 0.02 = 2%. Configurada pelo dono do SaaS. */
+  platformFee: number;
 };
 
 const initial: State = {
   user: { id: "u_1932", name: "Visitante", balance: 0 },
   event: { name: "Arraiá do Sagrado Coração", date: "21 de Junho", org: "Escola Sagrado Coração" },
+  platformFee: 0.02,
   products: [
     { id: "p1", name: "Espetinho", price: 12, emoji: "🍢", barraca: "Churrasquinho" },
     { id: "p2", name: "Pastel de queijo", price: 10, emoji: "🥟", barraca: "Pastelaria" },
@@ -80,6 +83,12 @@ export function chargeProduct(productId: string) {
   });
   write(s);
   return { product: p, balance: s.user.balance };
+}
+
+export function setPlatformFee(fee: number) {
+  const s = read();
+  s.platformFee = Math.max(0, Math.min(0.1, fee));
+  write(s);
 }
 
 export function reset() {

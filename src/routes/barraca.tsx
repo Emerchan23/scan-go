@@ -371,6 +371,16 @@ function BarracaApp() {
             <SuccessSheet success={success} onClose={reset} />
           )}
         </AnimatePresence>
+
+        {/* Modal: validar fichinha (offline) */}
+        <AnimatePresence>
+          {showFichaModal && (
+            <FichaModal
+              onClose={() => setShowFichaModal(false)}
+              onValidate={validateFicha}
+            />
+          )}
+        </AnimatePresence>
       </div>
       <InstallPrompt appName="FestaCash PDV" />
     </div>

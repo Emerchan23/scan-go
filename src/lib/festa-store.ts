@@ -14,7 +14,35 @@ export type Product = {
   image?: string;
   description?: string;
   durationMin?: number;
+  /** Estoque inicial disponível (unidades). undefined = sem controle. */
   stock?: number;
+  /** Limite a partir do qual aparece "acabando". Default = 10. */
+  stockAlert?: number;
+};
+
+/** Histórico de reposições de estoque feitas pelo admin/caixa. */
+export type StockMovement = {
+  id: string;
+  productId: string;
+  qty: number;            // positivo = entrada, negativo = ajuste
+  by: string;
+  at: number;
+  note?: string;
+};
+
+/** Como o cliente vê disponibilidade no catálogo. */
+export type StockVisibility = "off" | "esgotado" | "acabando";
+
+/** Estado de vendas — kill switch em 2 estágios. */
+export type SalesStatus = {
+  /** Recargas (cliente comprar crédito) e emissão de ficha pelo caixa. */
+  topUps: "open" | "closed";
+  /** Cobranças nas barracas. */
+  charges: "open" | "closed";
+  /** Quando charges=closed, fichas offline já emitidas continuam debitando? */
+  walletsActiveAfterClose: boolean;
+  closedAt?: number;
+  topUpsClosedAt?: number;
 };
 
 /** Barraca cadastrada pelo organizador. */

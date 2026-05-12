@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Battery, Check, ChevronLeft, Minus, Plus, ScanLine, Search, Signal, Trash2, Wifi, X } from "lucide-react";
+import { Check, ChevronLeft, Minus, Plus, ScanLine, Search, Trash2, X } from "lucide-react";
+import { InstallPrompt } from "@/components/install-prompt";
 import { chargeProduct, useStore, type Product } from "@/lib/festa-store";
 
 export const Route = createFileRoute("/barraca")({

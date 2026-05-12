@@ -4,8 +4,9 @@ import { AnimatePresence, motion } from "framer-motion";
 import { QRCodeSVG } from "qrcode.react";
 import { AlertTriangle, Bell, ChevronRight, Clock, History, Home, Info, Plus, QrCode as QrIcon, Search, Send, ShoppingBag } from "lucide-react";
 
-import { addCredits, convertBalanceToWallet, requestRefund, stockStatus, transfer, useStore, type Product, type ProductKind, type Wallet } from "@/lib/festa-store";
+import { addCredits, convertBalanceToWallet, getMyClientWallets, requestRefund, stockStatus, transfer, useStore, type Product, type ProductKind, type Wallet } from "@/lib/festa-store";
 import { InstallPrompt } from "@/components/install-prompt";
+import { NotificationBell } from "@/components/notification-bell";
 import { Receipt as WalletReceipt, PrintStyles } from "@/routes/caixa";
 import { WifiOff, Download as DownloadIcon } from "lucide-react";
 
@@ -49,10 +50,7 @@ function ClientApp() {
               <div className="text-[10px] uppercase tracking-widest text-muted-foreground">{s.event.org}</div>
             </div>
           </div>
-          <button className="grid h-10 w-10 place-items-center rounded-full bg-secondary text-foreground/80 active:scale-95 transition">
-            <Bell className="h-4 w-4" />
-            <span className="sr-only">Notificações</span>
-          </button>
+          <NotificationBell audience="client" who={s.user.name || "anon"} />
         </div>
 
         {/* Toast */}
@@ -289,16 +287,21 @@ const KIND_LABEL: Record<ProductKind, string> = {
 function CatalogView({ onTab }: { onTab: (t: Tab) => void }) {
   const s = useStore();
   const [kind, setKind] = useState<"todos" | ProductKind>("todos");
+  const [barracaId, setBarracaId] = useState<"todas" | string>("todas");
   const [q, setQ] = useState("");
 
   const list = useMemo(() => {
     const term = q.trim().toLowerCase();
+    const allowedIds = barracaId === "todas"
+      ? null
+      : new Set(s.barracas.find((b) => b.id === barracaId)?.productIds ?? []);
     return s.products.filter((p) => {
       if (kind !== "todos" && p.kind !== kind) return false;
+      if (allowedIds && !allowedIds.has(p.id)) return false;
       if (term && !`${p.name} ${p.barraca}`.toLowerCase().includes(term)) return false;
       return true;
     });
-  }, [s.products, kind, q]);
+  }, [s.products, s.barracas, kind, barracaId, q]);
 
   const filters: ("todos" | ProductKind)[] = ["todos", "comida", "bebida", "doce", "brinquedo", "ingresso"];
 

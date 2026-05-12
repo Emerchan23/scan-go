@@ -356,6 +356,10 @@ export function addCredits(amount: number, name?: string) {
   if (s.salesStatus.topUps === "closed") throw new Error("Recargas encerradas pelo organizador");
   if (name) s.user.name = name;
   s.user.balance += amount;
+  pushNotif(s, { audience: "client", forUser: s.user.name, kind: "success", title: `Recarga de R$ ${amount}`, body: `Saldo agora: R$ ${s.user.balance}` });
+  if (amount >= s.bigSpendAlert) {
+    pushNotif(s, { audience: "admin", kind: "info", title: `💰 Recarga grande: R$ ${amount}`, body: `${s.user.name} adicionou crédito.` });
+  }
   write(s);
 }
 

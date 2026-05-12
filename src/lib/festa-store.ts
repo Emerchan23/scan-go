@@ -43,7 +43,7 @@ export type Wallet = {
 export type Sale = { id: string; productId: string; product: string; price: number; barraca: string; at: number; user: string };
 export type User = { id: string; name: string; balance: number };
 
-const KEY = "festacash:v3";
+const KEY = "festacash:v4";
 
 /** O que acontece com o saldo não usado quando o evento acaba. */
 export type CreditPolicy = {

@@ -23,7 +23,9 @@ function CaixaPage() {
   const [holder, setHolder] = useState("");
   const [amount, setAmount] = useState(50);
   const [method, setMethod] = useState<"dinheiro" | "pix" | "credito">("dinheiro");
+  const [passphrase, setPassphrase] = useState("");
   const [issued, setIssued] = useState<Wallet | null>(null);
+  const [issueError, setIssueError] = useState<string | null>(null);
   const operator = "Bilheteria";
 
   const todays = useMemo(
@@ -36,8 +38,18 @@ function CaixaPage() {
   const totalToday = todays.reduce((a, w) => a + (w.balance + w.consumed), 0);
 
   const issue = () => {
-    const w = issueWallet({ holder: holder || undefined, amount, issuedBy: operator });
-    setIssued(w);
+    setIssueError(null);
+    try {
+      const w = issueWallet({
+        holder: holder || undefined,
+        amount,
+        issuedBy: operator,
+        passphrase: passphrase || undefined,
+      });
+      setIssued(w);
+    } catch (e: any) {
+      setIssueError(e?.message ?? "Erro ao emitir ficha");
+    }
   };
 
   const printNow = () => {

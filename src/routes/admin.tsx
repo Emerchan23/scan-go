@@ -188,6 +188,8 @@ function AdminPage() {
         </div>
         <PolicyExplainer />
 
+        <BarracasManager />
+
         {/* Folders / QR para imprimir */}
         <a
           href="/folder"

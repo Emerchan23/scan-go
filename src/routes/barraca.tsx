@@ -215,7 +215,10 @@ function BarracaApp() {
               {current.attendant ? `Atendente: ${current.attendant}` : "Toque pra trocar"} · trocar
             </div>
           </button>
-          <span className="grid h-10 w-10 place-items-center rounded-full bg-success/15 text-success text-xs font-bold">●</span>
+          <div className="flex items-center gap-2">
+            <UndoLastSaleButton barracaName={current.name} attendant={current.attendant ?? "Atendente"} onError={setError} />
+            <span className="grid h-10 w-10 place-items-center rounded-full bg-success/15 text-success text-xs font-bold">●</span>
+          </div>
         </header>
 
         {/* Customer strip */}

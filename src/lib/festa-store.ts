@@ -155,10 +155,34 @@ type State = {
   platformFee: number;
   policy: CreditPolicy;
   split: SplitAccount;
+  roles: Role[];
+  staff: Staff[];
+  refundRequests: RefundRequest[];
+  refundLogs: RefundLog[];
+  /** Sessão atual (staff logado) — id ou null. */
+  sessionStaffId: string | null;
 };
 
-const KEY_BUMP = "v4";
+const KEY_BUMP = "v5";
 void KEY_BUMP;
+
+const builtInRoles: Role[] = [
+  {
+    id: "role_admin", name: "Administrador", builtIn: true,
+    description: "Acesso total ao painel, usuários, split e aprovações.",
+    permissions: ["admin.full", "users.manage", "catalog.manage", "barracas.manage", "split.manage", "policy.manage", "caixa.issue", "caixa.search_orders", "refund.execute", "refund.approve", "barraca.charge"],
+  },
+  {
+    id: "role_caixa", name: "Caixa", builtIn: true,
+    description: "Bilheteria — emite fichas e abre solicitações de reembolso.",
+    permissions: ["caixa.issue", "caixa.search_orders", "refund.request"],
+  },
+  {
+    id: "role_barraca", name: "Barraca", builtIn: true,
+    description: "Atendente de PDV — só cobra produtos da sua barraca.",
+    permissions: ["barraca.charge"],
+  },
+];
 
 const initial: State = {
   user: { id: "u_1932", name: "Visitante", balance: 0 },

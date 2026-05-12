@@ -42,10 +42,8 @@ function BarracaApp() {
   const total = cart.reduce((a, c) => a + c.product.price * c.qty, 0);
   const totalQty = cart.reduce((a, c) => a + c.qty, 0);
 
-  useEffect(() => {
-    const t = setInterval(() => setNow(new Date()), 30_000);
-    return () => clearInterval(t);
-  }, []);
+
+
 
   useEffect(() => {
     if (!error) return;

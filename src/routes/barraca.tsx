@@ -110,13 +110,11 @@ function BarracaApp() {
   };
 
   return (
-    <div className="min-h-[100svh] bg-foreground/5">
-      <div className="mx-auto flex min-h-[100svh] w-full max-w-md flex-col bg-background shadow-pop md:my-6 md:min-h-[860px] md:rounded-[44px] md:overflow-hidden md:ring-8 md:ring-foreground/90">
-        {/* Status bar */}
-        <div className="flex items-center justify-between px-6 pt-3 text-[11px] font-semibold text-foreground/80">
-          <span className="tabular-nums">{now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</span>
-          <div className="flex items-center gap-1.5"><Signal className="h-3.5 w-3.5" /><Wifi className="h-3.5 w-3.5" /><Battery className="h-4 w-4" /></div>
-        </div>
+    <div className="min-h-[100svh] bg-background">
+      <div
+        className="relative mx-auto flex min-h-[100svh] w-full max-w-md flex-col bg-background"
+        style={{ paddingTop: "env(safe-area-inset-top)" }}
+      >
 
         {/* Top bar */}
         <header className="flex items-center justify-between px-5 pt-2 pb-3">

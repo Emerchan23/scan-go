@@ -1,11 +1,29 @@
 // Mock data + simple persisted store using localStorage.
 // Frontend-only simulation of the FestaCash flows.
 
-export type Product = { id: string; name: string; price: number; emoji: string; barraca: string };
+export type ProductKind = "comida" | "bebida" | "doce" | "brinquedo" | "ingresso";
+
+export type Product = {
+  id: string;
+  name: string;
+  price: number;
+  emoji: string;
+  barraca: string;
+  kind: ProductKind;
+  /** Foto do produto (URL ou data:URL salvo do upload). */
+  image?: string;
+  /** Descrição curta para o catálogo. */
+  description?: string;
+  /** Tempo de uso em minutos — usado em brinquedos / ingressos. */
+  durationMin?: number;
+  /** Estoque (opcional). */
+  stock?: number;
+};
+
 export type Sale = { id: string; productId: string; product: string; price: number; barraca: string; at: number; user: string };
 export type User = { id: string; name: string; balance: number };
 
-const KEY = "festacash:v1";
+const KEY = "festacash:v2";
 
 type State = {
   user: User;
@@ -21,14 +39,19 @@ const initial: State = {
   event: { name: "Arraiá do Sagrado Coração", date: "21 de Junho", org: "Escola Sagrado Coração" },
   platformFee: 0.02,
   products: [
-    { id: "p1", name: "Espetinho", price: 12, emoji: "🍢", barraca: "Churrasquinho" },
-    { id: "p2", name: "Pastel de queijo", price: 10, emoji: "🥟", barraca: "Pastelaria" },
-    { id: "p3", name: "Pé-de-moleque", price: 5, emoji: "🥜", barraca: "Doces" },
-    { id: "p4", name: "Quentão (250ml)", price: 8, emoji: "🍷", barraca: "Bebidas" },
-    { id: "p5", name: "Refrigerante", price: 7, emoji: "🥤", barraca: "Bebidas" },
-    { id: "p6", name: "Milho cozido", price: 6, emoji: "🌽", barraca: "Milho" },
-    { id: "p7", name: "Canjica", price: 9, emoji: "🥣", barraca: "Doces" },
-    { id: "p8", name: "Cachorro-quente", price: 14, emoji: "🌭", barraca: "Lanches" },
+    { id: "p1", name: "Espetinho de carne", price: 12, emoji: "🍢", barraca: "Churrasquinho", kind: "comida", description: "Carne bovina temperada na brasa, com farofa.", stock: 80 },
+    { id: "p2", name: "Pastel de queijo", price: 10, emoji: "🥟", barraca: "Pastelaria", kind: "comida", description: "Massa crocante recém-frita." , stock: 60 },
+    { id: "p3", name: "Pé-de-moleque", price: 5, emoji: "🥜", barraca: "Doces", kind: "doce", description: "Tradicional, feito na hora." },
+    { id: "p4", name: "Quentão (250ml)", price: 8, emoji: "🍷", barraca: "Bebidas", kind: "bebida", description: "Gengibre, cravo e canela." },
+    { id: "p5", name: "Refrigerante lata", price: 7, emoji: "🥤", barraca: "Bebidas", kind: "bebida" },
+    { id: "p6", name: "Milho cozido", price: 6, emoji: "🌽", barraca: "Milho", kind: "comida" },
+    { id: "p7", name: "Canjica", price: 9, emoji: "🥣", barraca: "Doces", kind: "doce" },
+    { id: "p8", name: "Cachorro-quente", price: 14, emoji: "🌭", barraca: "Lanches", kind: "comida" },
+    // Brinquedos / ingressos
+    { id: "b1", name: "Cama elástica", price: 15, emoji: "🤸", barraca: "Brinquedos", kind: "brinquedo", durationMin: 10, description: "10 minutos de pulo livre na cama elástica gigante." },
+    { id: "b2", name: "Touro mecânico", price: 20, emoji: "🐂", barraca: "Brinquedos", kind: "brinquedo", durationMin: 5, description: "5 minutos no touro — quem aguenta?" },
+    { id: "b3", name: "Pintura facial", price: 10, emoji: "🎨", barraca: "Brinquedos", kind: "ingresso", description: "Uma sessão de pintura facial temática." },
+    { id: "b4", name: "Pula-pula infantil", price: 12, emoji: "🎈", barraca: "Brinquedos", kind: "brinquedo", durationMin: 15, description: "15 minutos no castelo inflável (até 8 anos)." },
   ],
   sales: [],
 };
@@ -88,6 +111,19 @@ export function chargeProduct(productId: string) {
 export function setPlatformFee(fee: number) {
   const s = read();
   s.platformFee = Math.max(0, Math.min(0.1, fee));
+  write(s);
+}
+
+export function upsertProduct(p: Product) {
+  const s = read();
+  const i = s.products.findIndex((x) => x.id === p.id);
+  if (i >= 0) s.products[i] = p; else s.products.unshift(p);
+  write(s);
+}
+
+export function removeProduct(id: string) {
+  const s = read();
+  s.products = s.products.filter((p) => p.id !== id);
   write(s);
 }
 

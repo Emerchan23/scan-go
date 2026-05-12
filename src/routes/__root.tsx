@@ -88,7 +88,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     ],
     links: [
       { rel: "stylesheet", href: appCss },
-      { rel: "manifest", href: "/manifest.webmanifest" },
+      // Manifest is set per-role route (/cliente, /barraca, /caixa) so each
+      // installed PWA opens directly in its own app shell. The default
+      // /manifest.webmanifest is still served for crawlers and the landing.
       { rel: "icon", href: "/icon.svg", type: "image/svg+xml" },
       { rel: "apple-touch-icon", href: "/icon.svg" },
     ],

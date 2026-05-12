@@ -354,8 +354,8 @@ function BarracaApp() {
           cart={cart}
           total={total}
           totalQty={totalQty}
-          balance={s.user.balance}
-          enabled={scanned && cart.length > 0}
+          balance={ficha ? ficha.wallet.balance : s.user.balance}
+          enabled={(scanned || !!ficha) && cart.length > 0}
           onDec={dec}
           onInc={(id) => {
             const p = s.products.find((x) => x.id === id);

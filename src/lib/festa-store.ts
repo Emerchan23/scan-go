@@ -276,8 +276,10 @@ function genWalletCode() {
 }
 
 /** Caixa emite uma ficha (carteira offline) com saldo. Devolve a ficha. */
-export function issueWallet(opts: { holder?: string; amount: number; issuedBy: string }): Wallet {
+export function issueWallet(opts: { holder?: string; amount: number; issuedBy: string; passphrase?: string }): Wallet {
   if (opts.amount <= 0) throw new Error("Valor inválido");
+  const pass = opts.passphrase?.trim();
+  if (pass && pass.length < 3) throw new Error("Palavra-chave muito curta (mín. 3 caracteres)");
   const s = read();
   let code = genWalletCode();
   while (s.wallets.find((w) => w.code === code)) code = genWalletCode();
@@ -288,6 +290,7 @@ export function issueWallet(opts: { holder?: string; amount: number; issuedBy: s
     issuedAt: Date.now(),
     issuedBy: opts.issuedBy,
     consumed: 0,
+    passphrase: pass ? pass.toUpperCase() : undefined,
   };
   s.wallets.unshift(w);
   write(s);

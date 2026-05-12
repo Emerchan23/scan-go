@@ -21,25 +21,45 @@ type CartItem = { product: Product; qty: number };
 
 function BarracaApp() {
   const s = useStore();
-  // (status bar removido — UX nativa de PWA)
+  const [currentId, setCurrentId] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    return localStorage.getItem(BARRACA_KEY);
+  });
+
+  const current = useMemo<Barraca | null>(
+    () => s.barracas.find((b) => b.id === currentId) ?? null,
+    [s.barracas, currentId],
+  );
+
+  const pickBarraca = (id: string) => {
+    setCurrentId(id);
+    if (typeof window !== "undefined") localStorage.setItem(BARRACA_KEY, id);
+  };
+  const switchBarraca = () => {
+    setCurrentId(null);
+    if (typeof window !== "undefined") localStorage.removeItem(BARRACA_KEY);
+  };
+
   const [scanned, setScanned] = useState(false);
   const [scanning, setScanning] = useState(false);
-  const [filter, setFilter] = useState("Todos");
   const [q, setQ] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [success, setSuccess] = useState<{ total: number; balance: number; items: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const barracas = useMemo(() => ["Todos", ...Array.from(new Set(s.products.map((p) => p.barraca)))], [s.products]);
+  // Produtos liberados pra esta barraca (N:N).
+  const allowed = useMemo(() => {
+    if (!current) return [] as Product[];
+    return s.products.filter((p) => current.productIds.includes(p.id));
+  }, [s.products, current]);
 
   const list = useMemo(() => {
     const term = q.trim().toLowerCase();
-    return s.products.filter((p) => {
-      if (filter !== "Todos" && p.barraca !== filter) return false;
+    return allowed.filter((p) => {
       if (term && !p.name.toLowerCase().includes(term)) return false;
       return true;
     });
-  }, [s.products, filter, q]);
+  }, [allowed, q]);
 
   const total = cart.reduce((a, c) => a + c.product.price * c.qty, 0);
   const totalQty = cart.reduce((a, c) => a + c.qty, 0);

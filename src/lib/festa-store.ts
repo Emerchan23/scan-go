@@ -293,6 +293,7 @@ export function getState() { return read(); }
 
 export function addCredits(amount: number, name?: string) {
   const s = read();
+  if (s.salesStatus.topUps === "closed") throw new Error("Recargas encerradas pelo organizador");
   if (name) s.user.name = name;
   s.user.balance += amount;
   write(s);
@@ -316,6 +317,18 @@ export function chargeProduct(productId: string, walletCode?: string, passphrase
   const p = s.products.find((x) => x.id === productId);
   if (!p) throw new Error("Produto não encontrado");
 
+  // Kill switch — vendas encerradas
+  if (s.salesStatus.charges === "closed") {
+    if (!walletCode || !s.salesStatus.walletsActiveAfterClose) {
+      throw new Error("Vendas encerradas pelo organizador");
+    }
+  }
+
+  // Estoque
+  if (typeof p.stock === "number" && p.stock <= 0) {
+    throw new Error(`${p.name}: esgotado`);
+  }
+
   let payerName = s.user.name;
   let newBalance: number;
 
@@ -338,6 +351,8 @@ export function chargeProduct(productId: string, walletCode?: string, passphrase
     newBalance = s.user.balance;
   }
 
+  if (typeof p.stock === "number") p.stock = Math.max(0, p.stock - 1);
+
   s.sales.unshift({
     id: "s_" + Math.random().toString(36).slice(2, 9),
     productId: p.id,
@@ -351,6 +366,65 @@ export function chargeProduct(productId: string, walletCode?: string, passphrase
   });
   write(s);
   return { product: p, balance: newBalance };
+}
+
+/* ----------------------------- Kill switch ------------------------------ */
+
+export function closeTopUps() {
+  const s = read();
+  s.salesStatus.topUps = "closed";
+  s.salesStatus.topUpsClosedAt = Date.now();
+  write(s);
+}
+
+export function closeAllSales(walletsActive: boolean) {
+  const s = read();
+  s.salesStatus.topUps = "closed";
+  s.salesStatus.charges = "closed";
+  s.salesStatus.walletsActiveAfterClose = walletsActive;
+  s.salesStatus.closedAt = Date.now();
+  if (!s.salesStatus.topUpsClosedAt) s.salesStatus.topUpsClosedAt = Date.now();
+  write(s);
+}
+
+export function reopenSales() {
+  const s = read();
+  s.salesStatus = { topUps: "open", charges: "open", walletsActiveAfterClose: true };
+  write(s);
+}
+
+/* ------------------------------ Estoque -------------------------------- */
+
+export function restockProduct(opts: { productId: string; qty: number; by: string; note?: string }) {
+  if (opts.qty === 0) throw new Error("Quantidade inválida");
+  const s = read();
+  const p = s.products.find((x) => x.id === opts.productId);
+  if (!p) throw new Error("Produto não encontrado");
+  p.stock = Math.max(0, (p.stock ?? 0) + opts.qty);
+  s.stockMoves.unshift({
+    id: "sm_" + Math.random().toString(36).slice(2, 9),
+    productId: p.id,
+    qty: opts.qty,
+    by: opts.by,
+    at: Date.now(),
+    note: opts.note?.trim() || undefined,
+  });
+  write(s);
+}
+
+export function setClientStockVisibility(v: StockVisibility) {
+  const s = read();
+  s.clientStockVisibility = v;
+  write(s);
+}
+
+/** Status de estoque para UI. */
+export function stockStatus(p: Product): "ok" | "low" | "out" | "untracked" {
+  if (typeof p.stock !== "number") return "untracked";
+  if (p.stock <= 0) return "out";
+  const alert = p.stockAlert ?? 10;
+  if (p.stock <= alert) return "low";
+  return "ok";
 }
 
 /** Verifica código + palavra-chave. Usado no PDV antes de montar o pedido. */

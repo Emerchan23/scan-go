@@ -176,9 +176,11 @@ export function transfer(amount: number) {
 
 /**
  * Cobra um produto. Se `walletCode` for informado, debita da ficha emitida
- * pelo Caixa; caso contrário, da carteira do cliente logado.
+ * pelo Caixa; caso contrário, da carteira do cliente logado. Quando a ficha
+ * tem `passphrase`, é obrigatório passar `passphrase` correta — protege
+ * fichas que vazem por foto do QR.
  */
-export function chargeProduct(productId: string, walletCode?: string) {
+export function chargeProduct(productId: string, walletCode?: string, passphrase?: string) {
   const s = read();
   const p = s.products.find((x) => x.id === productId);
   if (!p) throw new Error("Produto não encontrado");
@@ -189,6 +191,11 @@ export function chargeProduct(productId: string, walletCode?: string) {
   if (walletCode) {
     const w = s.wallets.find((x) => x.code === walletCode);
     if (!w) throw new Error("Ficha não encontrada");
+    if (w.passphrase) {
+      const given = (passphrase ?? "").trim().toUpperCase();
+      if (!given) throw new Error("Esta ficha exige palavra-chave");
+      if (given !== w.passphrase) throw new Error("Palavra-chave incorreta");
+    }
     if (w.balance < p.price) throw new Error("Saldo da ficha insuficiente");
     w.balance -= p.price;
     w.consumed += p.price;
@@ -211,6 +218,19 @@ export function chargeProduct(productId: string, walletCode?: string) {
   });
   write(s);
   return { product: p, balance: newBalance };
+}
+
+/** Verifica código + palavra-chave. Usado no PDV antes de montar o pedido. */
+export function verifyWalletAccess(code: string, passphrase?: string): Wallet {
+  const s = read();
+  const w = s.wallets.find((x) => x.code.toUpperCase() === code.trim().toUpperCase());
+  if (!w) throw new Error("Ficha não encontrada");
+  if (w.passphrase) {
+    const given = (passphrase ?? "").trim().toUpperCase();
+    if (!given) throw new Error("Esta ficha exige palavra-chave");
+    if (given !== w.passphrase) throw new Error("Palavra-chave incorreta");
+  }
+  return w;
 }
 
 /* ---------------------- Barracas (CRUD + atribuição) -------------------- */

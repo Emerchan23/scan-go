@@ -189,9 +189,13 @@ type State = {
   refundLogs: RefundLog[];
   /** Sessão atual (staff logado) — id ou null. */
   sessionStaffId: string | null;
+  salesStatus: SalesStatus;
+  stockMoves: StockMovement[];
+  /** O quanto o cliente vê de estoque no catálogo. */
+  clientStockVisibility: StockVisibility;
 };
 
-const KEY_BUMP = "v5";
+const KEY_BUMP = "v6";
 void KEY_BUMP;
 
 const builtInRoles: Role[] = [

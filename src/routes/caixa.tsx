@@ -148,6 +148,24 @@ function CaixaPage() {
                 ))}
               </div>
 
+              <div className="mt-5 flex items-center justify-between">
+                <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Palavra-chave (opcional)</div>
+                <span className="text-[10px] text-muted-foreground">🔒 anti-foto</span>
+              </div>
+              <input
+                value={passphrase}
+                onChange={(e) => setPassphrase(e.target.value.slice(0, 16))}
+                placeholder="Ex.: PIPOCA, 1234, FORRO..."
+                className="mt-1 w-full rounded-xl border border-border bg-background px-4 py-3 text-sm uppercase tracking-wider outline-none focus:ring-2 focus:ring-ring"
+              />
+              <p className="mt-1 text-[11px] leading-snug text-muted-foreground">
+                Combine algo simples com o cliente <span className="font-semibold">de boca</span>. A barraca vai pedir antes de debitar — se alguém fotografar o QR, sem a palavra não usa.
+              </p>
+
+              {issueError && (
+                <div className="mt-3 rounded-xl border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">{issueError}</div>
+              )}
+
               <button
                 onClick={issue}
                 disabled={amount <= 0}

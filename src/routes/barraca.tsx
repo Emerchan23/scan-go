@@ -12,6 +12,15 @@ export const Route = createFileRoute("/barraca")({
     meta: [
       { title: "PDV — FestaCash" },
       { name: "description", content: "PDV da barraca: escaneie o QR Code do cliente, monte o pedido e cobre em segundos." },
+      { name: "theme-color", content: "#1f6f43" },
+      { name: "apple-mobile-web-app-title", content: "Barraca" },
+      { name: "apple-mobile-web-app-capable", content: "yes" },
+      { name: "mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
+    ],
+    links: [
+      { rel: "manifest", href: "/barraca.webmanifest" },
+      { rel: "apple-touch-icon", href: "/icon.svg" },
     ],
   }),
   component: BarracaApp,

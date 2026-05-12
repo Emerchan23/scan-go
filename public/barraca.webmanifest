@@ -1,0 +1,17 @@
+{
+  "name": "FestaCash — Barraca (PDV)",
+  "short_name": "Barraca",
+  "description": "PDV da barraca: leia o QR do cliente e registre vendas em segundos.",
+  "start_url": "/barraca?utm_source=pwa",
+  "scope": "/",
+  "id": "/barraca",
+  "display": "standalone",
+  "display_override": ["standalone", "fullscreen", "minimal-ui"],
+  "orientation": "portrait",
+  "background_color": "#fff8ec",
+  "theme_color": "#1f6f43",
+  "categories": ["business", "productivity", "food"],
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

@@ -4,6 +4,7 @@ import { QRCodeCanvas, QRCodeSVG } from "qrcode.react";
 import { Banknote, Download, FileDown, Printer, ScanLine, Search, ShieldAlert, Undo2, X } from "lucide-react";
 import { jsPDF } from "jspdf";
 import { SiteHeader } from "@/components/site-header";
+import { InstallPrompt } from "@/components/install-prompt";
 import { Bunting } from "@/components/bunting";
 import { closeShift, createRefundRequest, executeRefund, getOpenShift, issueWallet, openShift, searchSales, useStore, type CashShift, type Sale, type Wallet } from "@/lib/festa-store";
 
@@ -12,6 +13,15 @@ export const Route = createFileRoute("/caixa")({
     meta: [
       { title: "Caixa — FestaCash" },
       { name: "description", content: "Bilheteria da festa: receba dinheiro/Pix e emita uma fichinha com QR Code de crédito pra usar nas barracas." },
+      { name: "theme-color", content: "#a76b00" },
+      { name: "apple-mobile-web-app-title", content: "Caixa" },
+      { name: "apple-mobile-web-app-capable", content: "yes" },
+      { name: "mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
+    ],
+    links: [
+      { rel: "manifest", href: "/caixa.webmanifest" },
+      { rel: "apple-touch-icon", href: "/icon.svg" },
     ],
   }),
   component: CaixaPage,
@@ -259,6 +269,7 @@ function CaixaPage() {
       </main>
 
       <PrintStyles />
+      <InstallPrompt appName="FestaCash Caixa" />
     </div>
   );
 }

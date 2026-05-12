@@ -15,6 +15,15 @@ export const Route = createFileRoute("/cliente")({
     meta: [
       { title: "FestaCash — Sua carteira do evento" },
       { name: "description", content: "Compre créditos, veja o catálogo da festa, mostre seu QR Code e acompanhe seu saldo." },
+      { name: "theme-color", content: "#c0392b" },
+      { name: "apple-mobile-web-app-title", content: "FestaCash" },
+      { name: "apple-mobile-web-app-capable", content: "yes" },
+      { name: "mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
+    ],
+    links: [
+      { rel: "manifest", href: "/cliente.webmanifest" },
+      { rel: "apple-touch-icon", href: "/icon.svg" },
     ],
   }),
   component: ClientApp,

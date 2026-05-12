@@ -3,7 +3,6 @@ import { useRef, useState } from "react";
 import { SiteHeader } from "@/components/site-header";
 import { Bunting } from "@/components/bunting";
 import { connectSplit, decideRefundRequest, disconnectSplit, removeBarraca, removeProduct, reset, setPolicy, toggleBarracaProduct, upsertBarraca, upsertProduct, useStore, type Barraca, type Product, type ProductKind } from "@/lib/festa-store";
-import { useState as useStateRefund } from "react";
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 export const Route = createFileRoute("/admin")({

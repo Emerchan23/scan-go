@@ -526,3 +526,85 @@ function SuccessSheet({ success, onClose }: { success: { total: number; balance:
     </motion.div>
   );
 }
+
+/* ----------------------------- Ficha modal ---------------------------- */
+
+function FichaModal({
+  onClose,
+  onValidate,
+}: {
+  onClose: () => void;
+  onValidate: (code: string, passphrase: string) => void;
+}) {
+  const [code, setCode] = useState("");
+  const [pass, setPass] = useState("");
+  const [err, setErr] = useState<string | null>(null);
+
+  const submit = () => {
+    setErr(null);
+    if (!code.trim()) { setErr("Informe o código da ficha"); return; }
+    try {
+      onValidate(code, pass);
+    } catch (e: any) {
+      setErr(e?.message ?? "Erro ao validar ficha");
+    }
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      className="absolute inset-0 z-50 grid place-items-end sm:place-items-center bg-foreground/60 p-4 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ y: 30, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 30, opacity: 0 }}
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-sm rounded-3xl bg-card p-6 shadow-pop"
+      >
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Fichinha do caixa</div>
+            <h3 className="font-serif text-xl">Validar antes de cobrar</h3>
+          </div>
+          <button onClick={onClose} className="grid h-9 w-9 place-items-center rounded-full bg-secondary"><X className="h-4 w-4" /></button>
+        </div>
+
+        <label className="mt-5 block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Código da ficha</label>
+        <input
+          autoFocus
+          value={code}
+          onChange={(e) => setCode(e.target.value.toUpperCase())}
+          placeholder="F-XXXXXX"
+          className="mt-1 w-full rounded-xl border-2 border-border bg-background px-4 py-3 text-center font-mono text-lg tracking-[0.3em] outline-none focus:border-foreground"
+        />
+
+        <label className="mt-4 block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+          Palavra-chave do cliente
+        </label>
+        <input
+          value={pass}
+          onChange={(e) => setPass(e.target.value.toUpperCase().slice(0, 16))}
+          placeholder="Pergunte ao cliente"
+          className="mt-1 w-full rounded-xl border-2 border-border bg-background px-4 py-3 text-center font-mono text-lg tracking-[0.25em] outline-none focus:border-foreground"
+        />
+        <p className="mt-1 text-[11px] text-muted-foreground">
+          Deixe em branco se a ficha foi emitida sem palavra-chave.
+        </p>
+
+        {err && (
+          <div className="mt-3 rounded-xl border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">{err}</div>
+        )}
+
+        <button
+          onClick={submit}
+          className="mt-5 w-full rounded-full bg-primary py-3.5 font-semibold text-primary-foreground shadow-pop active:scale-[0.98] transition"
+        >
+          Validar ficha
+        </button>
+        <p className="mt-2 text-center text-[10px] text-muted-foreground">
+          Se a palavra-chave não bater, a ficha não cobra. Proteção contra cópia/foto do QR.
+        </p>
+      </motion.div>
+    </motion.div>
+  );
+}

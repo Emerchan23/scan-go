@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as OwnerRouteImport } from './routes/owner'
+import { Route as FolderRouteImport } from './routes/folder'
 import { Route as ClienteRouteImport } from './routes/cliente'
 import { Route as CatalogoRouteImport } from './routes/catalogo'
 import { Route as BarracaRouteImport } from './routes/barraca'
@@ -19,6 +20,11 @@ import { Route as IndexRouteImport } from './routes/index'
 const OwnerRoute = OwnerRouteImport.update({
   id: '/owner',
   path: '/owner',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FolderRoute = FolderRouteImport.update({
+  id: '/folder',
+  path: '/folder',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ClienteRoute = ClienteRouteImport.update({
@@ -53,6 +59,7 @@ export interface FileRoutesByFullPath {
   '/barraca': typeof BarracaRoute
   '/catalogo': typeof CatalogoRoute
   '/cliente': typeof ClienteRoute
+  '/folder': typeof FolderRoute
   '/owner': typeof OwnerRoute
 }
 export interface FileRoutesByTo {
@@ -61,6 +68,7 @@ export interface FileRoutesByTo {
   '/barraca': typeof BarracaRoute
   '/catalogo': typeof CatalogoRoute
   '/cliente': typeof ClienteRoute
+  '/folder': typeof FolderRoute
   '/owner': typeof OwnerRoute
 }
 export interface FileRoutesById {
@@ -70,13 +78,28 @@ export interface FileRoutesById {
   '/barraca': typeof BarracaRoute
   '/catalogo': typeof CatalogoRoute
   '/cliente': typeof ClienteRoute
+  '/folder': typeof FolderRoute
   '/owner': typeof OwnerRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/admin' | '/barraca' | '/catalogo' | '/cliente' | '/owner'
+  fullPaths:
+    | '/'
+    | '/admin'
+    | '/barraca'
+    | '/catalogo'
+    | '/cliente'
+    | '/folder'
+    | '/owner'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/admin' | '/barraca' | '/catalogo' | '/cliente' | '/owner'
+  to:
+    | '/'
+    | '/admin'
+    | '/barraca'
+    | '/catalogo'
+    | '/cliente'
+    | '/folder'
+    | '/owner'
   id:
     | '__root__'
     | '/'
@@ -84,6 +107,7 @@ export interface FileRouteTypes {
     | '/barraca'
     | '/catalogo'
     | '/cliente'
+    | '/folder'
     | '/owner'
   fileRoutesById: FileRoutesById
 }
@@ -93,6 +117,7 @@ export interface RootRouteChildren {
   BarracaRoute: typeof BarracaRoute
   CatalogoRoute: typeof CatalogoRoute
   ClienteRoute: typeof ClienteRoute
+  FolderRoute: typeof FolderRoute
   OwnerRoute: typeof OwnerRoute
 }
 
@@ -103,6 +128,13 @@ declare module '@tanstack/react-router' {
       path: '/owner'
       fullPath: '/owner'
       preLoaderRoute: typeof OwnerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/folder': {
+      id: '/folder'
+      path: '/folder'
+      fullPath: '/folder'
+      preLoaderRoute: typeof FolderRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/cliente': {
@@ -149,8 +181,19 @@ const rootRouteChildren: RootRouteChildren = {
   BarracaRoute: BarracaRoute,
   CatalogoRoute: CatalogoRoute,
   ClienteRoute: ClienteRoute,
+  FolderRoute: FolderRoute,
   OwnerRoute: OwnerRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

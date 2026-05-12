@@ -5,7 +5,7 @@ import { Banknote, Download, FileDown, Printer, ScanLine, Search, ShieldAlert, U
 import { jsPDF } from "jspdf";
 import { SiteHeader } from "@/components/site-header";
 import { Bunting } from "@/components/bunting";
-import { createRefundRequest, executeRefund, issueWallet, searchSales, useStore, type Sale, type Wallet } from "@/lib/festa-store";
+import { closeShift, createRefundRequest, executeRefund, getOpenShift, issueWallet, openShift, searchSales, useStore, type CashShift, type Sale, type Wallet } from "@/lib/festa-store";
 
 export const Route = createFileRoute("/caixa")({
   head: () => ({
@@ -100,6 +100,8 @@ function CaixaPage() {
               )}
             </div>
           )}
+
+          {me && canIssue && <ShiftPanel staffId={me.id} staffName={me.name} />}
         </div>
 
         {tab === "pedidos" && canSearch && (

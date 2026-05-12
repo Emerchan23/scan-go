@@ -354,6 +354,26 @@ function CatalogView({ onTab }: { onTab: (t: Tab) => void }) {
         </div>
       </div>
 
+      <div className="-mx-5 mt-2 overflow-x-auto px-5">
+        <div className="flex gap-2 pb-1">
+          <button
+            onClick={() => setBarracaId("todas")}
+            className={`shrink-0 rounded-full px-3 py-1 text-[11px] font-semibold transition ${
+              barracaId === "todas" ? "bg-primary text-primary-foreground" : "bg-card border border-border text-foreground/70"
+            }`}
+          >🎪 Todas barracas</button>
+          {s.barracas.map((b) => (
+            <button
+              key={b.id}
+              onClick={() => setBarracaId(b.id)}
+              className={`shrink-0 rounded-full px-3 py-1 text-[11px] font-semibold transition ${
+                barracaId === b.id ? "bg-primary text-primary-foreground" : "bg-card border border-border text-foreground/70"
+              }`}
+            >{b.emoji} {b.name}</button>
+          ))}
+        </div>
+      </div>
+
       <div className="mt-3 grid grid-cols-2 gap-3">
         {list.map((p) => <CatalogCard key={p.id} p={p} />)}
       </div>

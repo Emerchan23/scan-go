@@ -1,7 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
-import { QRCodeSVG } from "qrcode.react";
-import { Banknote, Printer, ScanLine, X, Search, Undo2, ShieldAlert } from "lucide-react";
+import { useMemo, useRef, useState } from "react";
+import { QRCodeCanvas, QRCodeSVG } from "qrcode.react";
+import { Banknote, Download, FileDown, Printer, ScanLine, Search, ShieldAlert, Undo2, X } from "lucide-react";
+import { jsPDF } from "jspdf";
 import { SiteHeader } from "@/components/site-header";
 import { Bunting } from "@/components/bunting";
 import { createRefundRequest, executeRefund, issueWallet, searchSales, useStore, type Sale, type Wallet } from "@/lib/festa-store";

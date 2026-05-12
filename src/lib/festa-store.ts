@@ -47,10 +47,73 @@ export type Wallet = {
   passphrase?: string;
 };
 
-export type Sale = { id: string; productId: string; product: string; price: number; barraca: string; at: number; user: string };
+export type Sale = { id: string; productId: string; product: string; price: number; barraca: string; at: number; user: string; walletCode?: string; refunded?: number };
 export type User = { id: string; name: string; balance: number };
 
-const KEY = "festacash:v4";
+/* ----------------------------- Usuários & RBAC ---------------------------- */
+
+/** Permissões granulares do sistema. Combine em perfis customizáveis. */
+export type Permission =
+  | "admin.full"           // tudo (super admin)
+  | "users.manage"         // cadastrar/editar usuários e perfis
+  | "catalog.manage"       // produtos
+  | "barracas.manage"      // barracas + atribuição de produtos
+  | "split.manage"         // configurar split MP
+  | "policy.manage"        // política de saldo
+  | "caixa.issue"          // emitir fichas
+  | "caixa.search_orders"  // buscar pedidos / vendas
+  | "refund.execute"       // executa estorno direto (devolve saldo)
+  | "refund.request"       // só abre solicitação pro admin aprovar
+  | "refund.approve"       // aprova/nega solicitações
+  | "barraca.charge";      // operar PDV de barraca
+
+/** Perfil = conjunto nomeado de permissões. */
+export type Role = {
+  id: string;
+  name: string;
+  description?: string;
+  permissions: Permission[];
+  /** Built-ins não podem ser deletados, mas podem ter perms ajustadas. */
+  builtIn?: boolean;
+};
+
+export type Staff = {
+  id: string;
+  name: string;
+  pin: string;       // 4 dígitos (mock)
+  roleId: string;
+  active: boolean;
+  createdAt: number;
+};
+
+/** Solicitação de reembolso aberta pelo Caixa pro Admin aprovar. */
+export type RefundRequest = {
+  id: string;
+  saleId: string;
+  walletCode?: string;
+  amount: number;        // valor a reembolsar (parcial ou total)
+  reason: string;
+  requestedBy: string;   // staff name
+  requestedAt: number;
+  status: "pending" | "approved" | "denied";
+  decidedBy?: string;
+  decidedAt?: number;
+  decisionNote?: string;
+};
+
+/** Log de qualquer estorno executado (direto ou pós-aprovação). */
+export type RefundLog = {
+  id: string;
+  saleId: string;
+  walletCode?: string;
+  amount: number;
+  reason: string;
+  by: string;
+  at: number;
+  via: "direct" | "approved";
+};
+
+const KEY = "festacash:v5";
 
 /** O que acontece com o saldo não usado quando o evento acaba. */
 export type CreditPolicy = {
@@ -92,10 +155,34 @@ type State = {
   platformFee: number;
   policy: CreditPolicy;
   split: SplitAccount;
+  roles: Role[];
+  staff: Staff[];
+  refundRequests: RefundRequest[];
+  refundLogs: RefundLog[];
+  /** Sessão atual (staff logado) — id ou null. */
+  sessionStaffId: string | null;
 };
 
-const KEY_BUMP = "v4";
+const KEY_BUMP = "v5";
 void KEY_BUMP;
+
+const builtInRoles: Role[] = [
+  {
+    id: "role_admin", name: "Administrador", builtIn: true,
+    description: "Acesso total ao painel, usuários, split e aprovações.",
+    permissions: ["admin.full", "users.manage", "catalog.manage", "barracas.manage", "split.manage", "policy.manage", "caixa.issue", "caixa.search_orders", "refund.execute", "refund.approve", "barraca.charge"],
+  },
+  {
+    id: "role_caixa", name: "Caixa", builtIn: true,
+    description: "Bilheteria — emite fichas e abre solicitações de reembolso.",
+    permissions: ["caixa.issue", "caixa.search_orders", "refund.request"],
+  },
+  {
+    id: "role_barraca", name: "Barraca", builtIn: true,
+    description: "Atendente de PDV — só cobra produtos da sua barraca.",
+    permissions: ["barraca.charge"],
+  },
+];
 
 const initial: State = {
   user: { id: "u_1932", name: "Visitante", balance: 0 },
@@ -139,6 +226,15 @@ const initial: State = {
   ],
   wallets: [],
   sales: [],
+  roles: builtInRoles,
+  staff: [
+    { id: "staff_admin", name: "Marcos (Organizador)", pin: "1234", roleId: "role_admin", active: true, createdAt: Date.now() },
+    { id: "staff_caixa", name: "Bia (Bilheteria)",     pin: "2222", roleId: "role_caixa", active: true, createdAt: Date.now() },
+    { id: "staff_barr",  name: "Seu Zé (Churrasco)",   pin: "3333", roleId: "role_barraca", active: true, createdAt: Date.now() },
+  ],
+  refundRequests: [],
+  refundLogs: [],
+  sessionStaffId: null,
 };
 
 function read(): State {
@@ -215,6 +311,8 @@ export function chargeProduct(productId: string, walletCode?: string, passphrase
     barraca: p.barraca,
     at: Date.now(),
     user: payerName,
+    walletCode,
+    refunded: 0,
   });
   write(s);
   return { product: p, balance: newBalance };
@@ -366,6 +464,177 @@ export function requestRefund() {
 export function reset() {
   if (typeof window !== "undefined") localStorage.removeItem(KEY);
   write(initial);
+}
+
+/* ----------------------------- Sessão / RBAC ---------------------------- */
+
+export function login(staffId: string, pin: string): Staff {
+  const s = read();
+  const u = s.staff.find((x) => x.id === staffId);
+  if (!u) throw new Error("Usuário não encontrado");
+  if (!u.active) throw new Error("Usuário desativado");
+  if (u.pin !== pin) throw new Error("PIN incorreto");
+  s.sessionStaffId = u.id;
+  write(s);
+  return u;
+}
+
+export function logout() {
+  const s = read();
+  s.sessionStaffId = null;
+  write(s);
+}
+
+export function getCurrentStaff(): Staff | null {
+  const s = read();
+  if (!s.sessionStaffId) return null;
+  return s.staff.find((x) => x.id === s.sessionStaffId) ?? null;
+}
+
+export function getCurrentPermissions(): Permission[] {
+  const s = read();
+  const u = s.staff.find((x) => x.id === s.sessionStaffId);
+  if (!u) return [];
+  const role = s.roles.find((r) => r.id === u.roleId);
+  return role?.permissions ?? [];
+}
+
+export function hasPermission(p: Permission): boolean {
+  const perms = getCurrentPermissions();
+  return perms.includes("admin.full") || perms.includes(p);
+}
+
+/* ----------------------------- Roles CRUD ------------------------------- */
+
+export function upsertRole(r: Role) {
+  const s = read();
+  const i = s.roles.findIndex((x) => x.id === r.id);
+  if (i >= 0) {
+    // Built-ins: preservar flag
+    s.roles[i] = { ...r, builtIn: s.roles[i].builtIn };
+  } else {
+    s.roles.unshift({ ...r, builtIn: false });
+  }
+  write(s);
+}
+
+export function removeRole(id: string) {
+  const s = read();
+  const r = s.roles.find((x) => x.id === id);
+  if (!r) return;
+  if (r.builtIn) throw new Error("Perfis padrão não podem ser removidos");
+  if (s.staff.some((u) => u.roleId === id)) throw new Error("Existem usuários com este perfil");
+  s.roles = s.roles.filter((x) => x.id !== id);
+  write(s);
+}
+
+/* ----------------------------- Staff CRUD ------------------------------- */
+
+export function upsertStaff(u: Staff) {
+  if (!u.name.trim()) throw new Error("Nome obrigatório");
+  if (!/^\d{4}$/.test(u.pin)) throw new Error("PIN deve ter 4 dígitos");
+  const s = read();
+  const i = s.staff.findIndex((x) => x.id === u.id);
+  if (i >= 0) s.staff[i] = u; else s.staff.unshift(u);
+  write(s);
+}
+
+export function removeStaff(id: string) {
+  const s = read();
+  s.staff = s.staff.filter((x) => x.id !== id);
+  if (s.sessionStaffId === id) s.sessionStaffId = null;
+  write(s);
+}
+
+/* --------------------------- Reembolsos / Estorno ----------------------- */
+
+/** Executa estorno direto: devolve saldo à ficha (ou marca venda) e loga. */
+export function executeRefund(opts: { saleId: string; amount: number; reason: string; by: string; via?: "direct" | "approved" }): RefundLog {
+  const s = read();
+  const sale = s.sales.find((x) => x.id === opts.saleId);
+  if (!sale) throw new Error("Venda não encontrada");
+  if (!opts.reason.trim() || opts.reason.trim().length < 4) throw new Error("Motivo obrigatório (mín. 4 caracteres)");
+  const already = sale.refunded ?? 0;
+  const max = sale.price - already;
+  if (opts.amount <= 0 || opts.amount > max) throw new Error(`Valor inválido (máx R$${max})`);
+
+  // Devolve à carteira de origem
+  if (sale.walletCode) {
+    const w = s.wallets.find((x) => x.code === sale.walletCode);
+    if (!w) throw new Error("Ficha de origem não encontrada");
+    w.balance += opts.amount;
+    w.consumed = Math.max(0, w.consumed - opts.amount);
+  } else {
+    s.user.balance += opts.amount;
+  }
+
+  sale.refunded = already + opts.amount;
+
+  const log: RefundLog = {
+    id: "rl_" + Math.random().toString(36).slice(2, 9),
+    saleId: sale.id,
+    walletCode: sale.walletCode,
+    amount: opts.amount,
+    reason: opts.reason.trim(),
+    by: opts.by,
+    at: Date.now(),
+    via: opts.via ?? "direct",
+  };
+  s.refundLogs.unshift(log);
+  write(s);
+  return log;
+}
+
+export function createRefundRequest(opts: { saleId: string; amount: number; reason: string; requestedBy: string }): RefundRequest {
+  const s = read();
+  const sale = s.sales.find((x) => x.id === opts.saleId);
+  if (!sale) throw new Error("Venda não encontrada");
+  if (!opts.reason.trim() || opts.reason.trim().length < 4) throw new Error("Motivo obrigatório (mín. 4 caracteres)");
+  const already = sale.refunded ?? 0;
+  const max = sale.price - already;
+  if (opts.amount <= 0 || opts.amount > max) throw new Error(`Valor inválido (máx R$${max})`);
+  const r: RefundRequest = {
+    id: "rr_" + Math.random().toString(36).slice(2, 9),
+    saleId: sale.id,
+    walletCode: sale.walletCode,
+    amount: opts.amount,
+    reason: opts.reason.trim(),
+    requestedBy: opts.requestedBy,
+    requestedAt: Date.now(),
+    status: "pending",
+  };
+  s.refundRequests.unshift(r);
+  write(s);
+  return r;
+}
+
+export function decideRefundRequest(id: string, approve: boolean, by: string, note?: string) {
+  const s = read();
+  const r = s.refundRequests.find((x) => x.id === id);
+  if (!r) throw new Error("Solicitação não encontrada");
+  if (r.status !== "pending") throw new Error("Solicitação já decidida");
+  r.status = approve ? "approved" : "denied";
+  r.decidedBy = by;
+  r.decidedAt = Date.now();
+  r.decisionNote = note?.trim() || undefined;
+  write(s);
+  if (approve) {
+    executeRefund({ saleId: r.saleId, amount: r.amount, reason: r.reason, by, via: "approved" });
+  }
+}
+
+/** Busca venda por ID curto (últimos 6 chars) ou código de ficha. */
+export function searchSales(query: string): Sale[] {
+  const q = query.trim().toUpperCase();
+  if (!q) return [];
+  const s = read();
+  return s.sales.filter(
+    (x) =>
+      x.id.toUpperCase().includes(q) ||
+      (x.walletCode?.toUpperCase().includes(q) ?? false) ||
+      x.user.toUpperCase().includes(q) ||
+      x.product.toUpperCase().includes(q),
+  ).slice(0, 25);
 }
 
 import { useEffect, useState } from "react";

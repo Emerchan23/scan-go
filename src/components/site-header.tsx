@@ -5,6 +5,7 @@ const items = [
   { to: "/catalogo", label: "Catálogo" },
   { to: "/cliente", label: "Cliente" },
   { to: "/barraca", label: "Barraca" },
+  { to: "/caixa", label: "Caixa" },
   { to: "/admin", label: "Admin" },
   { to: "/folder", label: "Folders" },
   { to: "/owner", label: "Owner" },

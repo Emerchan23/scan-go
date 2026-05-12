@@ -1,6 +1,7 @@
 import { Link, useLocation, useNavigate } from "@tanstack/react-router";
-import { logout, useStore } from "@/lib/festa-store";
-import { LogOut } from "lucide-react";
+import { useEffect } from "react";
+import { applyStoredTheme, logout, setTheme, useStore } from "@/lib/festa-store";
+import { LogOut, Moon, Sun } from "lucide-react";
 
 const items = [
   { to: "/", label: "Início" },

@@ -2,6 +2,7 @@ import { Link, useLocation } from "@tanstack/react-router";
 
 const items = [
   { to: "/", label: "Início" },
+  { to: "/catalogo", label: "Catálogo" },
   { to: "/cliente", label: "Cliente" },
   { to: "/barraca", label: "Barraca" },
   { to: "/admin", label: "Admin" },

@@ -118,12 +118,23 @@ function BarracaPage() {
               key={p.id}
               onClick={() => charge(p.id)}
               disabled={!scanned}
-              className="group rounded-2xl border border-border bg-card p-4 text-left shadow-soft transition hover:border-foreground hover:shadow-pop disabled:opacity-50 disabled:cursor-not-allowed"
+              className="group overflow-hidden rounded-2xl border border-border bg-card text-left shadow-soft transition hover:border-foreground hover:shadow-pop disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <div className="text-3xl">{p.emoji}</div>
-              <div className="mt-2 font-serif text-lg leading-tight">{p.name}</div>
-              <div className="text-xs text-muted-foreground">{p.barraca}</div>
-              <div className="mt-2 font-display text-primary">R${p.price}</div>
+              <div className="relative aspect-[4/3] w-full bg-paper">
+                {p.image ? (
+                  <img src={p.image} alt={p.name} className="h-full w-full object-cover" />
+                ) : (
+                  <div className="grid h-full w-full place-items-center text-5xl">{p.emoji}</div>
+                )}
+                {p.durationMin ? (
+                  <span className="absolute right-2 top-2 rounded-full bg-foreground/90 px-2 py-0.5 text-[10px] font-semibold text-background">⏱ {p.durationMin}min</span>
+                ) : null}
+              </div>
+              <div className="p-3">
+                <div className="font-serif text-base leading-tight">{p.name}</div>
+                <div className="text-[11px] text-muted-foreground">{p.barraca}</div>
+                <div className="mt-1 font-display text-primary">R${p.price}</div>
+              </div>
             </button>
           ))}
         </div>

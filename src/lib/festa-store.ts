@@ -167,12 +167,32 @@ export function transfer(amount: number) {
   write(s);
 }
 
-export function chargeProduct(productId: string) {
+/**
+ * Cobra um produto. Se `walletCode` for informado, debita da ficha emitida
+ * pelo Caixa; caso contrário, da carteira do cliente logado.
+ */
+export function chargeProduct(productId: string, walletCode?: string) {
   const s = read();
   const p = s.products.find((x) => x.id === productId);
   if (!p) throw new Error("Produto não encontrado");
-  if (s.user.balance < p.price) throw new Error("Saldo insuficiente");
-  s.user.balance -= p.price;
+
+  let payerName = s.user.name;
+  let newBalance: number;
+
+  if (walletCode) {
+    const w = s.wallets.find((x) => x.code === walletCode);
+    if (!w) throw new Error("Ficha não encontrada");
+    if (w.balance < p.price) throw new Error("Saldo da ficha insuficiente");
+    w.balance -= p.price;
+    w.consumed += p.price;
+    payerName = w.holder || `Ficha ${w.code}`;
+    newBalance = w.balance;
+  } else {
+    if (s.user.balance < p.price) throw new Error("Saldo insuficiente");
+    s.user.balance -= p.price;
+    newBalance = s.user.balance;
+  }
+
   s.sales.unshift({
     id: "s_" + Math.random().toString(36).slice(2, 9),
     productId: p.id,
@@ -180,10 +200,75 @@ export function chargeProduct(productId: string) {
     price: p.price,
     barraca: p.barraca,
     at: Date.now(),
-    user: s.user.name,
+    user: payerName,
   });
   write(s);
-  return { product: p, balance: s.user.balance };
+  return { product: p, balance: newBalance };
+}
+
+/* ---------------------- Barracas (CRUD + atribuição) -------------------- */
+
+export function upsertBarraca(b: Barraca) {
+  const s = read();
+  const i = s.barracas.findIndex((x) => x.id === b.id);
+  if (i >= 0) s.barracas[i] = b; else s.barracas.unshift(b);
+  write(s);
+}
+
+export function removeBarraca(id: string) {
+  const s = read();
+  s.barracas = s.barracas.filter((b) => b.id !== id);
+  write(s);
+}
+
+export function toggleBarracaProduct(barracaId: string, productId: string, on: boolean) {
+  const s = read();
+  const b = s.barracas.find((x) => x.id === barracaId);
+  if (!b) return;
+  const has = b.productIds.includes(productId);
+  if (on && !has) b.productIds.push(productId);
+  if (!on && has) b.productIds = b.productIds.filter((p) => p !== productId);
+  write(s);
+}
+
+/** Produtos liberados pra venda numa barraca específica. */
+export function productsForBarraca(barracaId: string): Product[] {
+  const s = read();
+  const b = s.barracas.find((x) => x.id === barracaId);
+  if (!b) return [];
+  return s.products.filter((p) => b.productIds.includes(p.id));
+}
+
+/* ----------------------------- Carteiras / Caixa ------------------------ */
+
+function genWalletCode() {
+  const c = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let r = "F-";
+  for (let i = 0; i < 6; i++) r += c[Math.floor(Math.random() * c.length)];
+  return r;
+}
+
+/** Caixa emite uma ficha (carteira offline) com saldo. Devolve a ficha. */
+export function issueWallet(opts: { holder?: string; amount: number; issuedBy: string }): Wallet {
+  if (opts.amount <= 0) throw new Error("Valor inválido");
+  const s = read();
+  let code = genWalletCode();
+  while (s.wallets.find((w) => w.code === code)) code = genWalletCode();
+  const w: Wallet = {
+    code,
+    holder: opts.holder?.trim() || undefined,
+    balance: opts.amount,
+    issuedAt: Date.now(),
+    issuedBy: opts.issuedBy,
+    consumed: 0,
+  };
+  s.wallets.unshift(w);
+  write(s);
+  return w;
+}
+
+export function findWallet(code: string): Wallet | undefined {
+  return read().wallets.find((w) => w.code.toUpperCase() === code.toUpperCase());
 }
 
 export function setPlatformFee(fee: number) {

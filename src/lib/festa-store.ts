@@ -23,7 +23,21 @@ export type Product = {
 export type Sale = { id: string; productId: string; product: string; price: number; barraca: string; at: number; user: string };
 export type User = { id: string; name: string; balance: number };
 
-const KEY = "festacash:v2";
+const KEY = "festacash:v3";
+
+/** O que acontece com o saldo não usado quando o evento acaba. */
+export type CreditPolicy = {
+  /**
+   * - "expire": saldo expira ao fim do evento (fica com a organização)
+   * - "refund": cliente pode pedir reembolso até X dias após o fim
+   * - "carry":  saldo continua valendo pro próximo evento da mesma org
+   */
+  mode: "expire" | "refund" | "carry";
+  /** Janela de reembolso em dias após o fim do evento (modo refund). */
+  refundDays: number;
+  /** Timestamp em ms de quando o evento termina. */
+  endsAt: number;
+};
 
 type State = {
   user: User;
@@ -32,12 +46,19 @@ type State = {
   event: { name: string; date: string; org: string };
   /** Taxa da plataforma (split). 0.02 = 2%. Configurada pelo dono do SaaS. */
   platformFee: number;
+  /** Política de saldo não consumido. Configurada pelo organizador. */
+  policy: CreditPolicy;
 };
 
 const initial: State = {
   user: { id: "u_1932", name: "Visitante", balance: 0 },
   event: { name: "Arraiá do Sagrado Coração", date: "21 de Junho", org: "Escola Sagrado Coração" },
   platformFee: 0.02,
+  policy: {
+    mode: "refund",
+    refundDays: 7,
+    endsAt: Date.now() + 8 * 60 * 60 * 1000, // termina em ~8h pra demo mostrar contagem
+  },
   products: [
     { id: "p1", name: "Espetinho de carne", price: 12, emoji: "🍢", barraca: "Churrasquinho", kind: "comida", description: "Carne bovina temperada na brasa, com farofa.", stock: 80 },
     { id: "p2", name: "Pastel de queijo", price: 10, emoji: "🥟", barraca: "Pastelaria", kind: "comida", description: "Massa crocante recém-frita." , stock: 60 },

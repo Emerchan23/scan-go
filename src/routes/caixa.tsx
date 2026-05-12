@@ -719,3 +719,142 @@ function RefundDialog({ sale, operator, canExecute, canRequest, onClose }: { sal
     </div>
   );
 }
+
+/* ----------------------------- Shift Panel ----------------------------- */
+
+function ShiftPanel({ staffId, staffName }: { staffId: string; staffName: string }) {
+  const s = useStore();
+  void s.shifts.length;
+  const open = getOpenShift(staffId);
+  const myShifts = s.shifts.filter((x) => x.staffId === staffId).slice(0, 6);
+  const [closeOpen, setCloseOpen] = useState(false);
+
+  // Live snapshot for open shift
+  const issuedNow = open
+    ? s.wallets.filter((w) => w.issuedBy === staffName && w.issuedAt >= open.openedAt)
+    : [];
+  const totalSystem = issuedNow.reduce((a, w) => a + w.balance + w.consumed, 0);
+
+  return (
+    <div className="mt-5 rounded-2xl border-2 border-foreground bg-accent/40 p-4 shadow-pop">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div>
+          <div className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Turno do caixa</div>
+          {open ? (
+            <div className="font-serif text-lg leading-tight">
+              Aberto desde {new Date(open.openedAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+            </div>
+          ) : (
+            <div className="font-serif text-lg leading-tight">Nenhum turno aberto</div>
+          )}
+          {open && (
+            <div className="text-xs text-muted-foreground">
+              {issuedNow.length} ficha{issuedNow.length === 1 ? "" : "s"} · sistema R$ {totalSystem}
+            </div>
+          )}
+        </div>
+        <div className="flex gap-2">
+          {!open ? (
+            <button
+              onClick={() => openShift(staffId, staffName)}
+              className="rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground shadow-pop"
+            >Abrir turno</button>
+          ) : (
+            <button
+              onClick={() => setCloseOpen(true)}
+              className="rounded-full bg-foreground px-4 py-2 text-xs font-semibold text-background shadow-pop"
+            >Fechar turno · conferir caixa</button>
+          )}
+        </div>
+      </div>
+
+      {myShifts.length > 0 && (
+        <details className="mt-4">
+          <summary className="cursor-pointer text-xs font-semibold text-muted-foreground">Histórico de turnos</summary>
+          <ul className="mt-2 divide-y divide-border text-sm">
+            {myShifts.map((sh) => (
+              <li key={sh.id} className="flex items-center justify-between gap-2 py-2">
+                <div>
+                  <div className="font-mono text-[11px]">
+                    {new Date(sh.openedAt).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
+                    {" → "}
+                    {sh.closedAt ? new Date(sh.closedAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : "aberto"}
+                  </div>
+                  <div className="text-[10px] text-muted-foreground">
+                    {sh.walletsIssued ?? 0} fichas · sistema R$ {sh.totalIssued ?? 0}
+                  </div>
+                </div>
+                {sh.closedAt && typeof sh.diff === "number" && (
+                  <div className={`text-right text-xs font-semibold ${sh.diff === 0 ? "text-success" : sh.diff > 0 ? "text-warning" : "text-destructive"}`}>
+                    {sh.diff === 0 ? "✓ confere" : `R$ ${sh.diff > 0 ? "+" : ""}${sh.diff}`}
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+
+      {closeOpen && open && (
+        <CloseShiftDialog
+          shift={open}
+          totalSystem={totalSystem}
+          onClose={() => setCloseOpen(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+function CloseShiftDialog({ shift, totalSystem, onClose }: { shift: CashShift; totalSystem: number; onClose: () => void }) {
+  const [counted, setCounted] = useState(totalSystem);
+  const [notes, setNotes] = useState("");
+  const [err, setErr] = useState<string | null>(null);
+  const diff = counted - totalSystem;
+
+  const submit = () => {
+    setErr(null);
+    try {
+      closeShift({ shiftId: shift.id, countedCash: counted, notes });
+      onClose();
+    } catch (e: any) { setErr(e?.message ?? "Erro"); }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-foreground/40 p-4" onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-md rounded-3xl border-2 border-foreground bg-card p-6 shadow-pop">
+        <h3 className="font-serif text-2xl">Conferir caixa físico</h3>
+        <p className="text-xs text-muted-foreground">Conte o dinheiro/Pix recebido e digite abaixo. O sistema compara com o total emitido neste turno.</p>
+
+        <div className="mt-4 rounded-2xl bg-secondary p-3 text-sm">
+          <div className="flex justify-between"><span>Sistema (fichas emitidas)</span><span className="font-display">R$ {totalSystem}</span></div>
+        </div>
+
+        <label className="mt-4 block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Valor contado na gaveta</label>
+        <input
+          type="number" min={0} value={counted}
+          onChange={(e) => setCounted(Math.max(0, Number(e.target.value) || 0))}
+          className="mt-1 w-full rounded-xl border border-border bg-background px-4 py-3 text-center font-display text-2xl"
+        />
+
+        <div className={`mt-3 rounded-xl px-3 py-2 text-sm text-center ${diff === 0 ? "bg-success/15 text-success" : diff > 0 ? "bg-warning/15 text-warning" : "bg-destructive/15 text-destructive"}`}>
+          {diff === 0 ? "✓ Caixa confere" : diff > 0 ? `Sobra de R$ ${diff}` : `Falta R$ ${Math.abs(diff)}`}
+        </div>
+
+        <label className="mt-4 block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Observações</label>
+        <textarea
+          rows={2} value={notes} onChange={(e) => setNotes(e.target.value)}
+          placeholder="Ex.: troco a mais, sangria pro cofre..."
+          className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
+        />
+
+        {err && <div className="mt-3 rounded-xl border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">{err}</div>}
+
+        <div className="mt-5 flex gap-2">
+          <button onClick={onClose} className="flex-1 rounded-full border border-border py-3 text-sm font-semibold">Cancelar</button>
+          <button onClick={submit} className="flex-1 rounded-full bg-primary py-3 text-sm font-semibold text-primary-foreground shadow-pop">Fechar turno</button>
+        </div>
+      </div>
+    </div>
+  );
+}

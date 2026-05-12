@@ -485,6 +485,7 @@ export function restockProduct(opts: { productId: string; qty: number; by: strin
     at: Date.now(),
     note: opts.note?.trim() || undefined,
   });
+  pushNotif(s, { audience: "admin", kind: "success", title: `Reposição: +${opts.qty} ${p.emoji} ${p.name}`, body: `Por ${opts.by}. Estoque: ${p.stock}.` });
   write(s);
 }
 

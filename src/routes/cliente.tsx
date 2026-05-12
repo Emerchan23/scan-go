@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { QRCodeSVG } from "qrcode.react";
 import { Battery, Bell, ChevronRight, History, Home, Plus, QrCode as QrIcon, Send, Settings, Signal, Wifi } from "lucide-react";
-import { Bunting } from "@/components/bunting";
+
 import { addCredits, transfer, useStore } from "@/lib/festa-store";
 
 export const Route = createFileRoute("/cliente")({

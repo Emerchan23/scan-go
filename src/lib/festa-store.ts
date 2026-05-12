@@ -47,10 +47,73 @@ export type Wallet = {
   passphrase?: string;
 };
 
-export type Sale = { id: string; productId: string; product: string; price: number; barraca: string; at: number; user: string };
+export type Sale = { id: string; productId: string; product: string; price: number; barraca: string; at: number; user: string; walletCode?: string; refunded?: number };
 export type User = { id: string; name: string; balance: number };
 
-const KEY = "festacash:v4";
+/* ----------------------------- Usuários & RBAC ---------------------------- */
+
+/** Permissões granulares do sistema. Combine em perfis customizáveis. */
+export type Permission =
+  | "admin.full"           // tudo (super admin)
+  | "users.manage"         // cadastrar/editar usuários e perfis
+  | "catalog.manage"       // produtos
+  | "barracas.manage"      // barracas + atribuição de produtos
+  | "split.manage"         // configurar split MP
+  | "policy.manage"        // política de saldo
+  | "caixa.issue"          // emitir fichas
+  | "caixa.search_orders"  // buscar pedidos / vendas
+  | "refund.execute"       // executa estorno direto (devolve saldo)
+  | "refund.request"       // só abre solicitação pro admin aprovar
+  | "refund.approve"       // aprova/nega solicitações
+  | "barraca.charge";      // operar PDV de barraca
+
+/** Perfil = conjunto nomeado de permissões. */
+export type Role = {
+  id: string;
+  name: string;
+  description?: string;
+  permissions: Permission[];
+  /** Built-ins não podem ser deletados, mas podem ter perms ajustadas. */
+  builtIn?: boolean;
+};
+
+export type Staff = {
+  id: string;
+  name: string;
+  pin: string;       // 4 dígitos (mock)
+  roleId: string;
+  active: boolean;
+  createdAt: number;
+};
+
+/** Solicitação de reembolso aberta pelo Caixa pro Admin aprovar. */
+export type RefundRequest = {
+  id: string;
+  saleId: string;
+  walletCode?: string;
+  amount: number;        // valor a reembolsar (parcial ou total)
+  reason: string;
+  requestedBy: string;   // staff name
+  requestedAt: number;
+  status: "pending" | "approved" | "denied";
+  decidedBy?: string;
+  decidedAt?: number;
+  decisionNote?: string;
+};
+
+/** Log de qualquer estorno executado (direto ou pós-aprovação). */
+export type RefundLog = {
+  id: string;
+  saleId: string;
+  walletCode?: string;
+  amount: number;
+  reason: string;
+  by: string;
+  at: number;
+  via: "direct" | "approved";
+};
+
+const KEY = "festacash:v5";
 
 /** O que acontece com o saldo não usado quando o evento acaba. */
 export type CreditPolicy = {

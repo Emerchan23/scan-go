@@ -1,28 +1,29 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { createFileRoute } from "@tanstack/react-router";
+import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { QRCodeSVG } from "qrcode.react";
-import { Battery, Bell, ChevronRight, History, Home, Plus, QrCode as QrIcon, Send, Settings, Signal, Wifi } from "lucide-react";
+import { AlertTriangle, Battery, Bell, ChevronRight, Clock, History, Home, Info, Plus, QrCode as QrIcon, Search, Send, ShoppingBag, Signal, Wifi } from "lucide-react";
 
-import { addCredits, transfer, useStore } from "@/lib/festa-store";
+import { addCredits, requestRefund, transfer, useStore, type Product, type ProductKind } from "@/lib/festa-store";
 
 export const Route = createFileRoute("/cliente")({
   head: () => ({
     meta: [
       { title: "FestaCash — Sua carteira do evento" },
-      { name: "description", content: "Compre créditos, mostre seu QR Code e transfira saldo para amigos." },
+      { name: "description", content: "Compre créditos, veja o catálogo da festa, mostre seu QR Code e acompanhe seu saldo." },
     ],
   }),
   component: ClientApp,
 });
 
-type Tab = "home" | "qr" | "comprar" | "transferir" | "historico";
+type Tab = "home" | "catalogo" | "comprar" | "qr" | "historico";
 
 function ClientApp() {
   const s = useStore();
   const [tab, setTab] = useState<Tab>("home");
   const [now, setNow] = useState(() => new Date());
   const [toast, setToast] = useState<string | null>(null);
+  const [transferOpen, setTransferOpen] = useState(false);
 
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 30_000);
@@ -37,7 +38,6 @@ function ClientApp() {
 
   return (
     <div className="min-h-[100svh] bg-foreground/5">
-      {/* Phone-like app shell */}
       <div className="mx-auto flex min-h-[100svh] w-full max-w-md flex-col bg-background shadow-pop md:my-6 md:min-h-[860px] md:rounded-[44px] md:overflow-hidden md:ring-8 md:ring-foreground/90">
         <StatusBar now={now} />
 
@@ -81,14 +81,21 @@ function ClientApp() {
               transition={{ duration: 0.18 }}
               className="px-5"
             >
-              {tab === "home" && <HomeView onTab={setTab} />}
+              {tab === "home" && <HomeView onTab={setTab} onTransfer={() => setTransferOpen(true)} onToast={setToast} />}
+              {tab === "catalogo" && <CatalogView onTab={setTab} />}
               {tab === "qr" && <QrView />}
               {tab === "comprar" && <BuyView onDone={(m) => { setToast(m); setTab("home"); }} />}
-              {tab === "transferir" && <TransferView onDone={setToast} />}
-              {tab === "historico" && <HistoryView />}
+              {tab === "historico" && <HistoryView onToast={setToast} />}
             </motion.div>
           </AnimatePresence>
         </div>
+
+        {/* Transfer bottom sheet */}
+        <AnimatePresence>
+          {transferOpen && (
+            <TransferSheet onClose={() => setTransferOpen(false)} onDone={(m) => { setToast(m); setTransferOpen(false); }} />
+          )}
+        </AnimatePresence>
 
         {/* Bottom tab bar */}
         <BottomBar tab={tab} onTab={setTab} />
@@ -115,7 +122,7 @@ function StatusBar({ now }: { now: Date }) {
 
 /* ------------------------------ Home view ----------------------------- */
 
-function HomeView({ onTab }: { onTab: (t: Tab) => void }) {
+function HomeView({ onTab, onTransfer, onToast }: { onTab: (t: Tab) => void; onTransfer: () => void; onToast: (m: string) => void }) {
   const s = useStore();
   const recent = s.sales.filter((x) => x.user === s.user.name).slice(0, 3);
 
@@ -123,28 +130,28 @@ function HomeView({ onTab }: { onTab: (t: Tab) => void }) {
     <div>
       <WalletCard />
 
+      <PolicyBanner onAction={onToast} />
+
       {/* Quick actions */}
       <div className="mt-5 grid grid-cols-4 gap-2">
         <QuickAction icon={<Plus className="h-5 w-5" />} label="Comprar" onClick={() => onTab("comprar")} />
         <QuickAction icon={<QrIcon className="h-5 w-5" />} label="Meu QR" onClick={() => onTab("qr")} />
-        <QuickAction icon={<Send className="h-5 w-5" />} label="Enviar" onClick={() => onTab("transferir")} />
-        <QuickAction icon={<History className="h-5 w-5" />} label="Histórico" onClick={() => onTab("historico")} />
+        <QuickAction icon={<Send className="h-5 w-5" />} label="Enviar" onClick={onTransfer} />
+        <QuickAction icon={<History className="h-5 w-5" />} label="Extrato" onClick={() => onTab("historico")} />
       </div>
 
-      {/* Promo card */}
-      <Link
-        to="/catalogo"
-        className="mt-5 flex items-center gap-3 rounded-2xl border border-border bg-gradient-to-r from-accent to-secondary p-4 active:scale-[0.99] transition"
+      <button
+        onClick={() => onTab("catalogo")}
+        className="mt-5 flex w-full items-center gap-3 rounded-2xl border border-border bg-gradient-to-r from-accent to-secondary p-4 text-left active:scale-[0.99] transition"
       >
         <div className="grid h-12 w-12 place-items-center rounded-xl bg-foreground text-background font-display text-2xl">🎪</div>
         <div className="min-w-0 flex-1">
-          <div className="font-serif text-base leading-tight">Veja o catálogo da festa</div>
-          <div className="text-xs text-muted-foreground">Comidas, bebidas e brinquedos</div>
+          <div className="font-serif text-base leading-tight">O que tem na festa?</div>
+          <div className="text-xs text-muted-foreground">Veja preços antes de comprar créditos</div>
         </div>
         <ChevronRight className="h-5 w-5 text-foreground/50" />
-      </Link>
+      </button>
 
-      {/* Recent */}
       <div className="mt-6 flex items-center justify-between">
         <h2 className="font-serif text-lg">Atividade recente</h2>
         <button onClick={() => onTab("historico")} className="text-xs font-semibold text-primary">Ver tudo</button>
@@ -166,6 +173,226 @@ function HomeView({ onTab }: { onTab: (t: Tab) => void }) {
             ))}
           </ul>
         )}
+      </div>
+    </div>
+  );
+}
+
+/* ----------------------------- Policy banner -------------------------- */
+
+function usePolicyStatus() {
+  const s = useStore();
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const i = setInterval(() => setNow(Date.now()), 30_000);
+    return () => clearInterval(i);
+  }, []);
+  const ended = now >= s.policy.endsAt;
+  const msToEnd = s.policy.endsAt - now;
+  const refundDeadline = s.policy.endsAt + s.policy.refundDays * 86_400_000;
+  const msToRefund = refundDeadline - now;
+  return { policy: s.policy, balance: s.user.balance, ended, msToEnd, msToRefund, refundDeadline };
+}
+
+function PolicyBanner({ onAction }: { onAction: (m: string) => void }) {
+  const { policy, balance, ended, msToEnd, msToRefund } = usePolicyStatus();
+
+  if (policy.mode === "carry") {
+    return (
+      <div className="mt-4 flex items-start gap-3 rounded-2xl border border-border bg-secondary p-3.5 text-sm">
+        <Info className="mt-0.5 h-4 w-4 shrink-0 text-foreground/60" />
+        <div>
+          <div className="font-semibold">Saldo nunca expira</div>
+          <div className="text-xs text-muted-foreground">Sobrou? Continua valendo nos próximos eventos da organização.</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (policy.mode === "expire" && !ended) {
+    return (
+      <div className="mt-4 flex items-start gap-3 rounded-2xl border-2 border-warning/40 bg-warning/10 p-3.5 text-sm">
+        <Clock className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
+        <div className="min-w-0">
+          <div className="font-semibold text-warning">Seu crédito expira ao fim do evento</div>
+          <div className="text-xs text-foreground/70">Termina em <span className="font-display">{fmtCountdown(msToEnd)}</span> · gaste pra não perder.</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (policy.mode === "expire" && ended) {
+    return balance > 0 ? (
+      <div className="mt-4 flex items-start gap-3 rounded-2xl border-2 border-destructive/40 bg-destructive/10 p-3.5 text-sm">
+        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+        <div>
+          <div className="font-semibold text-destructive">Evento encerrado</div>
+          <div className="text-xs text-foreground/70">O crédito de R$ {balance} expirou conforme a política do organizador.</div>
+        </div>
+      </div>
+    ) : null;
+  }
+
+  // refund mode
+  if (!ended) {
+    return (
+      <div className="mt-4 flex items-start gap-3 rounded-2xl border border-border bg-card p-3.5 text-sm">
+        <Info className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+        <div className="min-w-0">
+          <div className="font-semibold">Sobrou crédito? Você pode pedir reembolso</div>
+          <div className="text-xs text-muted-foreground">Após o fim da festa, você tem <span className="font-semibold text-foreground">{policy.refundDays} dias</span> pra organização devolver.</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (msToRefund > 0 && balance > 0) {
+    return (
+      <div className="mt-4 rounded-2xl border-2 border-primary/40 bg-primary/5 p-4 text-sm">
+        <div className="flex items-start gap-3">
+          <Clock className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+          <div className="min-w-0">
+            <div className="font-semibold">Você ainda tem R$ {balance} pra reembolsar</div>
+            <div className="text-xs text-muted-foreground">Prazo de <span className="font-display">{fmtCountdown(msToRefund)}</span> pra pedir devolução.</div>
+          </div>
+        </div>
+        <button
+          onClick={() => {
+            try { const a = requestRefund(); onAction(`Reembolso de R$ ${a} solicitado.`); }
+            catch (e: any) { onAction(e.message); }
+          }}
+          className="mt-3 w-full rounded-full bg-primary py-2.5 text-sm font-semibold text-primary-foreground active:scale-[0.98] transition"
+        >
+          Pedir reembolso de R$ {balance}
+        </button>
+      </div>
+    );
+  }
+
+  if (msToRefund <= 0 && balance > 0) {
+    return (
+      <div className="mt-4 flex items-start gap-3 rounded-2xl border-2 border-destructive/40 bg-destructive/10 p-3.5 text-sm">
+        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+        <div>
+          <div className="font-semibold text-destructive">Prazo de reembolso encerrado</div>
+          <div className="text-xs text-foreground/70">O crédito não consumido foi retido pela organização.</div>
+        </div>
+      </div>
+    );
+  }
+
+  return null;
+}
+
+function fmtCountdown(ms: number) {
+  if (ms <= 0) return "encerrado";
+  const totalMin = Math.floor(ms / 60000);
+  const d = Math.floor(totalMin / (60 * 24));
+  const h = Math.floor((totalMin % (60 * 24)) / 60);
+  const m = totalMin % 60;
+  if (d > 0) return `${d}d ${h}h`;
+  if (h > 0) return `${h}h ${m}min`;
+  return `${m}min`;
+}
+
+/* ----------------------------- Catalog tab ---------------------------- */
+
+const KIND_LABEL: Record<ProductKind, string> = {
+  comida: "Comida", bebida: "Bebida", doce: "Doce", brinquedo: "Brinquedo", ingresso: "Ingresso",
+};
+
+function CatalogView({ onTab }: { onTab: (t: Tab) => void }) {
+  const s = useStore();
+  const [kind, setKind] = useState<"todos" | ProductKind>("todos");
+  const [q, setQ] = useState("");
+
+  const list = useMemo(() => {
+    const term = q.trim().toLowerCase();
+    return s.products.filter((p) => {
+      if (kind !== "todos" && p.kind !== kind) return false;
+      if (term && !`${p.name} ${p.barraca}`.toLowerCase().includes(term)) return false;
+      return true;
+    });
+  }, [s.products, kind, q]);
+
+  const filters: ("todos" | ProductKind)[] = ["todos", "comida", "bebida", "doce", "brinquedo", "ingresso"];
+
+  const avg = Math.round(s.products.reduce((a, p) => a + p.price, 0) / Math.max(1, s.products.length));
+  const sugestao = Math.max(50, Math.ceil((avg * 5) / 10) * 10);
+
+  return (
+    <div className="pt-2">
+      <div className="flex items-end justify-between gap-3">
+        <div>
+          <h1 className="font-serif text-2xl">Catálogo da festa</h1>
+          <p className="text-sm text-muted-foreground">Veja preços antes de comprar.</p>
+        </div>
+        <button
+          onClick={() => onTab("comprar")}
+          className="shrink-0 rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground shadow-pop active:scale-95 transition"
+        >
+          Comprar R${sugestao}
+        </button>
+      </div>
+
+      <div className="mt-3 flex items-start gap-2 rounded-2xl bg-secondary p-3 text-xs text-muted-foreground">
+        <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+        <span>Sugestão pra 1 pessoa: <span className="font-semibold text-foreground">~R$ {sugestao}</span> (cobre 4–5 itens). Dá pra recarregar a hora que quiser.</span>
+      </div>
+
+      <div className="mt-3 relative">
+        <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Buscar item..."
+          className="w-full rounded-full border border-border bg-card pl-9 pr-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring"
+        />
+      </div>
+
+      <div className="-mx-5 mt-3 overflow-x-auto px-5">
+        <div className="flex gap-2 pb-1">
+          {filters.map((f) => (
+            <button
+              key={f}
+              onClick={() => setKind(f)}
+              className={`shrink-0 rounded-full px-3.5 py-1.5 text-xs font-semibold capitalize transition ${
+                kind === f ? "bg-foreground text-background" : "bg-secondary text-foreground/70"
+              }`}
+            >
+              {f === "todos" ? "Todos" : KIND_LABEL[f]}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="mt-3 grid grid-cols-2 gap-3">
+        {list.map((p) => <CatalogCard key={p.id} p={p} />)}
+      </div>
+      {list.length === 0 && <div className="mt-10 text-center text-sm text-muted-foreground">Nenhum item encontrado.</div>}
+    </div>
+  );
+}
+
+function CatalogCard({ p }: { p: Product }) {
+  return (
+    <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-soft">
+      <div className="relative aspect-[4/3] w-full bg-paper">
+        {p.image ? (
+          <img src={p.image} alt={p.name} loading="lazy" className="h-full w-full object-cover" />
+        ) : (
+          <div className="grid h-full w-full place-items-center bg-gradient-to-br from-secondary to-accent/40 text-5xl">{p.emoji}</div>
+        )}
+        {p.durationMin ? (
+          <span className="absolute right-2 top-2 rounded-full bg-foreground/90 px-2 py-0.5 text-[10px] font-semibold text-background">⏱ {p.durationMin}min</span>
+        ) : null}
+      </div>
+      <div className="p-3">
+        <div className="font-serif text-sm leading-tight line-clamp-1">{p.name}</div>
+        <div className="mt-0.5 flex items-center justify-between">
+          <span className="text-[10px] text-muted-foreground line-clamp-1">{p.barraca}</span>
+          <span className="font-display text-primary text-base">R${p.price}</span>
+        </div>
       </div>
     </div>
   );
@@ -345,58 +572,83 @@ function BuyView({ onDone }: { onDone: (m: string) => void }) {
   );
 }
 
-/* ----------------------------- Transfer view -------------------------- */
+/* ----------------------------- Transfer sheet ------------------------- */
 
-function TransferView({ onDone }: { onDone: (m: string) => void }) {
+function TransferSheet({ onClose, onDone }: { onClose: () => void; onDone: (m: string) => void }) {
   const [amount, setAmount] = useState(10);
 
   const send = () => {
-    try {
-      transfer(amount);
-      onDone(`R$ ${amount},00 enviados.`);
-    } catch (e: any) {
-      onDone(e.message);
-    }
+    try { transfer(amount); onDone(`R$ ${amount},00 enviados.`); }
+    catch (e: any) { onDone(e.message); }
   };
 
   return (
-    <div className="pt-2">
-      <h1 className="font-serif text-2xl">Enviar para um amigo</h1>
-      <p className="text-sm text-muted-foreground">Aproxime os celulares e escaneie o QR.</p>
-
-      <div className="mt-5 grid place-items-center rounded-3xl border-2 border-dashed border-border bg-paper py-12 text-center">
-        <div className="font-display text-5xl">📷</div>
-        <div className="mt-2 text-sm text-muted-foreground">Toque para abrir a câmera</div>
-      </div>
-
-      <label className="mt-5 block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Valor</label>
-      <input
-        type="number"
-        value={amount}
-        onChange={(e) => setAmount(Number(e.target.value))}
-        className="mt-1 w-full rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+    <>
+      <motion.div
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        onClick={onClose}
+        className="absolute inset-0 z-30 bg-foreground/40"
       />
+      <motion.div
+        initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+        transition={{ type: "spring", damping: 28, stiffness: 260 }}
+        className="absolute inset-x-0 bottom-0 z-40 rounded-t-3xl border-t-2 border-foreground bg-card p-5 shadow-pop"
+      >
+        <div className="mx-auto h-1.5 w-12 rounded-full bg-foreground/20" />
+        <h3 className="mt-3 font-serif text-xl">Enviar para um amigo</h3>
+        <p className="text-sm text-muted-foreground">Aproxime os celulares e escaneie o QR.</p>
 
-      <button onClick={send} className="mt-5 w-full rounded-full bg-foreground py-3.5 font-semibold text-background active:scale-[0.98] transition">
-        Enviar R$ {amount},00
-      </button>
-    </div>
+        <div className="mt-4 grid place-items-center rounded-2xl border-2 border-dashed border-border bg-paper py-8 text-center">
+          <div className="font-display text-4xl">📷</div>
+          <div className="mt-1 text-xs text-muted-foreground">Toque para abrir a câmera</div>
+        </div>
+
+        <label className="mt-4 block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Valor</label>
+        <input
+          type="number"
+          value={amount}
+          onChange={(e) => setAmount(Number(e.target.value))}
+          className="mt-1 w-full rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+        />
+
+        <div className="mt-4 flex gap-2">
+          <button onClick={onClose} className="flex-1 rounded-full border border-border py-3 text-sm font-semibold">Cancelar</button>
+          <button onClick={send} className="flex-1 rounded-full bg-foreground py-3 font-semibold text-background active:scale-[0.98] transition">
+            Enviar R$ {amount}
+          </button>
+        </div>
+      </motion.div>
+    </>
   );
 }
 
 /* ------------------------------ History ------------------------------- */
 
-function HistoryView() {
+function HistoryView({ onToast }: { onToast: (m: string) => void }) {
   const s = useStore();
   const list = s.sales.filter((x) => x.user === s.user.name);
+  const total = list.reduce((a, x) => a + x.price, 0);
 
   return (
     <div className="pt-2">
-      <h1 className="font-serif text-2xl">Histórico</h1>
-      <p className="text-sm text-muted-foreground">Tudo que você consumiu na festa.</p>
+      <h1 className="font-serif text-2xl">Extrato</h1>
+      <p className="text-sm text-muted-foreground">Tudo que você comprou e consumiu na festa.</p>
+
+      <div className="mt-4 grid grid-cols-2 gap-2">
+        <div className="rounded-2xl bg-secondary p-4">
+          <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Saldo atual</div>
+          <div className="font-display text-2xl text-primary">R$ {s.user.balance}</div>
+        </div>
+        <div className="rounded-2xl bg-secondary p-4">
+          <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Consumido</div>
+          <div className="font-display text-2xl">R$ {total}</div>
+        </div>
+      </div>
+
+      <PolicyBanner onAction={onToast} />
 
       {list.length === 0 ? (
-        <div className="mt-8 grid place-items-center rounded-2xl border-2 border-dashed border-border py-12 text-center">
+        <div className="mt-6 grid place-items-center rounded-2xl border-2 border-dashed border-border py-12 text-center">
           <div className="font-display text-4xl">🎈</div>
           <p className="mt-2 text-sm text-muted-foreground">Nada aqui ainda. Vai lá!</p>
         </div>
@@ -423,10 +675,10 @@ function HistoryView() {
 function BottomBar({ tab, onTab }: { tab: Tab; onTab: (t: Tab) => void }) {
   const items: { id: Tab; label: string; icon: React.ReactNode }[] = [
     { id: "home", label: "Início", icon: <Home className="h-5 w-5" /> },
-    { id: "qr", label: "QR", icon: <QrIcon className="h-5 w-5" /> },
+    { id: "catalogo", label: "Catálogo", icon: <ShoppingBag className="h-5 w-5" /> },
     { id: "comprar", label: "Comprar", icon: <Plus className="h-6 w-6" /> },
-    { id: "transferir", label: "Enviar", icon: <Send className="h-5 w-5" /> },
-    { id: "historico", label: "Extrato", icon: <Settings className="h-5 w-5" /> },
+    { id: "qr", label: "QR", icon: <QrIcon className="h-5 w-5" /> },
+    { id: "historico", label: "Extrato", icon: <History className="h-5 w-5" /> },
   ];
 
   return (

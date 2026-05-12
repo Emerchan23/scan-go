@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useRef, useState } from "react";
 import { SiteHeader } from "@/components/site-header";
 import { Bunting } from "@/components/bunting";
-import { removeProduct, reset, upsertProduct, useStore, type Product, type ProductKind } from "@/lib/festa-store";
+import { removeProduct, reset, setPolicy, upsertProduct, useStore, type Product, type ProductKind } from "@/lib/festa-store";
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 export const Route = createFileRoute("/admin")({
@@ -192,19 +192,9 @@ function AdminPage() {
               ))}
             </div>
           </div>
-          <div className="rounded-3xl border border-border bg-card p-5 shadow-soft">
-            <h2 className="font-serif text-2xl">Saldo restante ao fim do evento</h2>
-            <p className="text-sm text-muted-foreground">Defina o que acontece com o crédito não usado.</p>
-            <div className="mt-4 space-y-2 text-sm">
-              {["Expira ao fim do evento", "Permitir transferência entre clientes", "Permitir doação para causa do evento", "Reembolso manual pelo organizador"].map((opt, i) => (
-                <label key={opt} className="flex items-center gap-3 rounded-xl bg-secondary px-4 py-3">
-                  <input type="checkbox" defaultChecked={i < 3} className="h-4 w-4 accent-[oklch(0.62_0.21_35)]" />
-                  {opt}
-                </label>
-              ))}
-            </div>
-          </div>
+          <PolicyCard />
         </div>
+        <PolicyExplainer />
 
         {/* Catálogo / produtos */}
         <CatalogManager />
@@ -397,4 +387,93 @@ function Kpi({ label, value, hint, tone }: { label: string; value: string; hint?
 
 function Empty({ msg }: { msg: string }) {
   return <div className="grid h-full place-items-center text-sm text-muted-foreground">{msg}</div>;
+}
+
+/* ---------------------------- Política de saldo ---------------------------- */
+
+function toLocalInput(ts: number) {
+  const d = new Date(ts);
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  return d.toISOString().slice(0, 16);
+}
+
+function PolicyCard() {
+  const s = useStore();
+  const p = s.policy;
+  const modes: { k: typeof p.mode; label: string; hint: string; tone: string }[] = [
+    { k: "expire", label: "Expira no fim", hint: "Saldo não consumido fica com a organização", tone: "border-warning/40" },
+    { k: "refund", label: "Reembolsável", hint: "Cliente pode pedir devolução por X dias", tone: "border-primary/40" },
+    { k: "carry",  label: "Próximo evento", hint: "Saldo continua valendo nos próximos eventos", tone: "border-success/40" },
+  ];
+  return (
+    <div className="rounded-3xl border border-border bg-card p-5 shadow-soft">
+      <h2 className="font-serif text-2xl">Política do saldo restante</h2>
+      <p className="text-sm text-muted-foreground">O que acontece com o crédito não consumido. O cliente vê isso no app dele.</p>
+
+      <div className="mt-4 grid gap-2 sm:grid-cols-3">
+        {modes.map((m) => {
+          const active = p.mode === m.k;
+          return (
+            <button
+              key={m.k}
+              onClick={() => setPolicy({ mode: m.k })}
+              className={`rounded-2xl border-2 p-3 text-left transition active:scale-[0.99] ${active ? `bg-accent/40 ${m.tone} border-foreground` : "border-border bg-background"}`}
+            >
+              <div className="font-serif text-base">{m.label}</div>
+              <div className="text-[11px] text-muted-foreground">{m.hint}</div>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        <label className="flex flex-col gap-1">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Fim do evento</span>
+          <input
+            type="datetime-local"
+            value={toLocalInput(p.endsAt)}
+            onChange={(e) => setPolicy({ endsAt: new Date(e.target.value).getTime() })}
+            className="rounded-xl border border-border bg-background px-3 py-2 text-sm"
+          />
+        </label>
+        {p.mode === "refund" && (
+          <label className="flex flex-col gap-1">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Janela de reembolso (dias)</span>
+            <input
+              type="number"
+              min={1}
+              max={60}
+              value={p.refundDays}
+              onChange={(e) => setPolicy({ refundDays: Math.max(1, Number(e.target.value) || 1) })}
+              className="rounded-xl border border-border bg-background px-3 py-2 text-sm"
+            />
+          </label>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function PolicyExplainer() {
+  const s = useStore();
+  const p = s.policy;
+  const ends = new Date(p.endsAt);
+  const refundEnd = new Date(p.endsAt + p.refundDays * 86_400_000);
+
+  const text =
+    p.mode === "expire"
+      ? `Os clientes verão um aviso: "Seu crédito expira ao fim do evento (${ends.toLocaleString("pt-BR")})". Saldo não consumido fica retido para a organização.`
+      : p.mode === "carry"
+      ? `Os clientes verão: "Saldo nunca expira — vale pros próximos eventos da ${s.event.org}".`
+      : `Os clientes verão um botão "Pedir reembolso de R$ X" disponível até ${refundEnd.toLocaleString("pt-BR")} (${p.refundDays} dias após o fim). Você aprova manualmente cada pedido.`;
+
+  return (
+    <div className="mt-4 flex items-start gap-3 rounded-2xl border-2 border-foreground bg-accent/30 p-4 text-sm shadow-pop">
+      <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-foreground text-background">📣</div>
+      <div>
+        <div className="font-semibold">Como o cliente vai ver no app</div>
+        <p className="mt-1 text-foreground/80">{text}</p>
+      </div>
+    </div>
+  );
 }

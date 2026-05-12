@@ -34,6 +34,8 @@
   --color-ring: var(--ring);
   --color-success: var(--success);
   --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
   --color-flame: var(--flame);
   --color-corn: var(--corn);
   --color-leaf: var(--leaf);
@@ -72,6 +74,8 @@
 
   --success: oklch(0.6 0.16 145);          /* leaf green */
   --success-foreground: oklch(0.985 0.02 85);
+  --warning: oklch(0.72 0.17 65);          /* amber */
+  --warning-foreground: oklch(0.22 0.08 40);
 
   --border: oklch(0.86 0.04 70);
   --input: oklch(0.92 0.03 75);
@@ -102,6 +106,8 @@
   --destructive-foreground: oklch(0.97 0.03 85);
   --success: oklch(0.65 0.16 145);
   --success-foreground: oklch(0.18 0.04 35);
+  --warning: oklch(0.78 0.17 65);
+  --warning-foreground: oklch(0.18 0.04 35);
   --border: oklch(1 0 0 / 12%);
   --input: oklch(1 0 0 / 16%);
   --ring: oklch(0.7 0.2 40);

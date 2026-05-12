@@ -188,6 +188,19 @@ function AdminPage() {
         </div>
         <PolicyExplainer />
 
+        {/* Folders / QR para imprimir */}
+        <a
+          href="/folder"
+          className="mt-6 flex items-center justify-between gap-4 rounded-3xl border-2 border-foreground bg-gradient-to-br from-accent/60 to-card p-6 shadow-pop transition active:scale-[0.99]"
+        >
+          <div>
+            <div className="text-[11px] font-semibold uppercase tracking-widest text-primary">Material físico</div>
+            <h3 className="mt-1 font-serif text-2xl">Folders e QR Codes para imprimir</h3>
+            <p className="text-sm text-muted-foreground">Cartazes A4, totens de mesa, adesivos e cupons. O cliente aponta a câmera e já compra crédito.</p>
+          </div>
+          <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-foreground text-2xl text-background">🖨️</span>
+        </a>
+
         {/* Catálogo / produtos */}
         <CatalogManager />
       </main>

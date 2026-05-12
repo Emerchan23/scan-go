@@ -283,6 +283,7 @@ function BarracaApp() {
           )}
         </AnimatePresence>
       </div>
+      <InstallPrompt appName="FestaCash PDV" />
     </div>
   );
 }

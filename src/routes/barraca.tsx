@@ -97,6 +97,14 @@ function BarracaApp() {
       setError("Escaneie o QR do cliente ou valide a fichinha primeiro");
       return;
     }
+    if (s.salesStatus.charges === "closed" && (!ficha || !s.salesStatus.walletsActiveAfterClose)) {
+      setError("Vendas encerradas pelo organizador");
+      return;
+    }
+    if (typeof p.stock === "number" && p.stock <= 0) {
+      setError(`${p.name} esgotou`);
+      return;
+    }
     setCart((c) => {
       const i = c.findIndex((x) => x.product.id === p.id);
       if (i >= 0) {

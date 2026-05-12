@@ -78,7 +78,39 @@ function CaixaPage() {
             Receba o valor, gere a fichinha com QR Code e imprima — o cliente
             apresenta na barraca e o atendente debita.
           </p>
+
+          {!me && (
+            <div className="mt-3 rounded-2xl border border-warning/40 bg-warning/10 p-3 text-xs">
+              Você não está logado. <Link to="/login" className="font-semibold underline">Entrar</Link> com seu PIN para registrar quem operou cada ficha/estorno.
+            </div>
+          )}
+
+          {(canIssue || canSearch) && (
+            <div className="mt-5 inline-flex rounded-full border border-border bg-secondary p-1">
+              {canIssue && (
+                <button onClick={() => setTab("emitir")} className={`rounded-full px-4 py-1.5 text-sm font-semibold ${tab === "emitir" ? "bg-foreground text-background" : "text-foreground/70"}`}>
+                  Emitir ficha
+                </button>
+              )}
+              {canSearch && (
+                <button onClick={() => setTab("pedidos")} className={`rounded-full px-4 py-1.5 text-sm font-semibold ${tab === "pedidos" ? "bg-foreground text-background" : "text-foreground/70"}`}>
+                  Pedidos / Reembolso
+                </button>
+              )}
+            </div>
+          )}
         </div>
+
+        {tab === "pedidos" && canSearch && (
+          <OrdersPanel operator={operator} canExecute={has("refund.execute")} canRequest={has("refund.request")} />
+        )}
+
+        {tab === "emitir" && !canIssue && (
+          <div className="mt-6 rounded-3xl border border-border bg-card p-6 text-center text-sm text-muted-foreground">
+            <ShieldAlert className="mx-auto h-8 w-8 text-warning" />
+            <p className="mt-2">Seu perfil não tem permissão para emitir fichas.</p>
+          </div>
+        )}
 
         {/* Telão da ficha emitida */}
         {issued && (

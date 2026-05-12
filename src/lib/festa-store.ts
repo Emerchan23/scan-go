@@ -39,6 +39,22 @@ export type CreditPolicy = {
   endsAt: number;
 };
 
+/** Conta Mercado Pago do organizador onde o split deposita o valor dele. */
+export type SplitAccount = {
+  /** Status da conexão Mercado Pago via OAuth. */
+  status: "pending" | "connected";
+  /** Nome do titular da conta (visível pro cliente final, gera confiança). */
+  holder: string;
+  /** Documento mascarado. */
+  document: string;
+  /** Email da conta MP. */
+  email: string;
+  /** ID público do vendedor no MP (mostra ao cliente que existe conta real). */
+  mpUserId?: string;
+  /** Quando conectou. */
+  connectedAt?: number;
+};
+
 type State = {
   user: User;
   products: Product[];
@@ -48,6 +64,8 @@ type State = {
   platformFee: number;
   /** Política de saldo não consumido. Configurada pelo organizador. */
   policy: CreditPolicy;
+  /** Conta do organizador no Mercado Pago (split). */
+  split: SplitAccount;
 };
 
 const initial: State = {
@@ -58,6 +76,14 @@ const initial: State = {
     mode: "refund",
     refundDays: 7,
     endsAt: Date.now() + 8 * 60 * 60 * 1000, // termina em ~8h pra demo mostrar contagem
+  },
+  split: {
+    status: "connected",
+    holder: "Escola Sagrado Coração Ltda",
+    document: "12.***.***/0001-23",
+    email: "tesouraria@sagradocoracao.org.br",
+    mpUserId: "MP-829471",
+    connectedAt: Date.now() - 2 * 86_400_000,
   },
   products: [
     { id: "p1", name: "Espetinho de carne", price: 12, emoji: "🍢", barraca: "Churrasquinho", kind: "comida", description: "Carne bovina temperada na brasa, com farofa.", stock: 80 },
@@ -145,6 +171,31 @@ export function upsertProduct(p: Product) {
 export function removeProduct(id: string) {
   const s = read();
   s.products = s.products.filter((p) => p.id !== id);
+  write(s);
+}
+
+export function setSplit(patch: Partial<SplitAccount>) {
+  const s = read();
+  s.split = { ...s.split, ...patch };
+  write(s);
+}
+
+export function connectSplit(data: { holder: string; document: string; email: string }) {
+  const s = read();
+  s.split = {
+    status: "connected",
+    holder: data.holder,
+    document: data.document,
+    email: data.email,
+    mpUserId: "MP-" + Math.floor(100000 + Math.random() * 900000),
+    connectedAt: Date.now(),
+  };
+  write(s);
+}
+
+export function disconnectSplit() {
+  const s = read();
+  s.split = { status: "pending", holder: "", document: "", email: "" };
   write(s);
 }
 

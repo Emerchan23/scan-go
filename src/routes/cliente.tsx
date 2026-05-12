@@ -560,14 +560,48 @@ function BuyView({ onDone }: { onDone: (m: string) => void }) {
         ))}
       </div>
 
+      {/* Para onde vai o dinheiro — confiança */}
+      <div className="mt-6 rounded-2xl border-2 border-foreground bg-card p-4 shadow-pop">
+        <div className="flex items-center gap-2">
+          <span className="text-base">🔒</span>
+          <div className="font-serif text-sm">Para onde vai o seu dinheiro</div>
+        </div>
+        {(() => {
+          const fee = s.platformFee ?? 0.02;
+          const platform = Math.round(amount * fee * 100) / 100;
+          const org = Math.round((amount - platform) * 100) / 100;
+          return (
+            <div className="mt-3 space-y-2 text-xs">
+              <Row label={`${s.event.org}`} sub={s.split.status === "connected" ? `MP · ${s.split.holder}` : "conta não conectada"} value={`R$ ${org.toFixed(2)}`} strong />
+              <Row label="FestaCash (taxa do app)" sub={`${(fee * 100).toFixed(1)}% sobre o valor`} value={`R$ ${platform.toFixed(2)}`} />
+              <div className="rounded-xl bg-secondary p-2 text-[11px] text-muted-foreground">
+                ✓ Split feito direto pelo Mercado Pago. A FestaCash <span className="font-semibold">não recebe</span> nem segura o valor da {s.event.org}.
+              </div>
+            </div>
+          );
+        })()}
+      </div>
+
       <button
-        disabled={!name.trim() || loading}
+        disabled={!name.trim() || loading || s.split.status !== "connected"}
         onClick={buy}
-        className="mt-6 w-full rounded-full bg-primary py-3.5 font-semibold text-primary-foreground shadow-pop active:scale-[0.98] transition disabled:opacity-50"
+        className="mt-4 w-full rounded-full bg-primary py-3.5 font-semibold text-primary-foreground shadow-pop active:scale-[0.98] transition disabled:opacity-50"
       >
-        {loading ? "Processando..." : `Pagar R$ ${amount},00`}
+        {loading ? "Processando..." : s.split.status !== "connected" ? "Organizador não conectou conta" : `Pagar R$ ${amount},00`}
       </button>
-      <p className="mt-2 text-center text-[11px] text-muted-foreground">Pagamento seguro · split automático</p>
+      <p className="mt-2 text-center text-[11px] text-muted-foreground">Pagamento seguro · split automático Mercado Pago</p>
+    </div>
+  );
+}
+
+function Row({ label, sub, value, strong }: { label: string; sub?: string; value: string; strong?: boolean }) {
+  return (
+    <div className="flex items-start justify-between gap-2">
+      <div className="min-w-0">
+        <div className={`truncate ${strong ? "font-semibold" : ""}`}>{label}</div>
+        {sub && <div className="text-[10px] text-muted-foreground">{sub}</div>}
+      </div>
+      <div className={`shrink-0 font-display ${strong ? "text-primary" : ""}`}>{value}</div>
     </div>
   );
 }

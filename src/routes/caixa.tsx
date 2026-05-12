@@ -397,3 +397,180 @@ function PrintStyles() {
     `}</style>
   );
 }
+
+/* ----------------------------- OrdersPanel ----------------------------- */
+
+function OrdersPanel({ operator, canExecute, canRequest }: { operator: string; canExecute: boolean; canRequest: boolean }) {
+  const s = useStore();
+  const [q, setQ] = useState("");
+  const results = useMemo(() => (q.trim() ? searchSales(q) : s.sales.slice(0, 12)), [q, s.sales]);
+  const [target, setTarget] = useState<Sale | null>(null);
+
+  return (
+    <div className="mt-6 grid gap-6 lg:grid-cols-[1.2fr_1fr]">
+      <section className="rounded-3xl border-2 border-foreground bg-card p-6 shadow-pop">
+        <div className="flex items-center gap-3">
+          <span className="grid h-12 w-12 place-items-center rounded-2xl bg-primary text-primary-foreground"><Search className="h-6 w-6" /></span>
+          <div>
+            <h2 className="font-serif text-2xl leading-tight">Buscar pedido</h2>
+            <p className="text-xs text-muted-foreground">Por código da ficha, ID da venda, cliente ou produto.</p>
+          </div>
+        </div>
+        <input
+          autoFocus
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="F-7K9XA2, espetinho, Maria, s_abc123..."
+          className="mt-4 w-full rounded-xl border border-border bg-background px-4 py-3 text-sm uppercase tracking-wider"
+        />
+        <ul className="mt-4 divide-y divide-border">
+          {results.length === 0 && <li className="py-6 text-center text-sm text-muted-foreground">Nenhuma venda encontrada.</li>}
+          {results.map((sale) => {
+            const refunded = sale.refunded ?? 0;
+            const remaining = sale.price - refunded;
+            return (
+              <li key={sale.id} className="flex items-center justify-between gap-3 py-3">
+                <div className="min-w-0">
+                  <div className="font-serif text-base">{sale.product}</div>
+                  <div className="text-[11px] text-muted-foreground">
+                    <code className="font-mono">{sale.id.slice(-6).toUpperCase()}</code> · {sale.barraca} · {sale.user}
+                    {sale.walletCode && <> · ficha <code className="font-mono">{sale.walletCode}</code></>}
+                    {" · "}{new Date(sale.at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="font-display text-primary">R${sale.price}</div>
+                  {refunded > 0 && <div className="text-[10px] text-warning">−R${refunded} estornado</div>}
+                  {remaining > 0 ? (
+                    <button onClick={() => setTarget(sale)} className="mt-1 inline-flex items-center gap-1 rounded-full border border-border px-3 py-1 text-[11px] font-semibold">
+                      <Undo2 className="h-3 w-3" /> Reembolsar
+                    </button>
+                  ) : (
+                    <div className="mt-1 text-[10px] text-muted-foreground">totalmente estornado</div>
+                  )}
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      </section>
+
+      <aside className="space-y-4">
+        <div className="rounded-3xl border border-border bg-card p-5 shadow-soft">
+          <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Como funciona</div>
+          <ul className="mt-2 space-y-2 text-sm">
+            <li>1. Busque a venda pelo código que o cliente trouxer.</li>
+            <li>2. Confirme o produto e o valor com o cliente.</li>
+            <li>3. Escolha estornar direto ou abrir solicitação pro Admin — depende do seu perfil.</li>
+            <li>4. Motivo é obrigatório e fica em log de auditoria.</li>
+          </ul>
+        </div>
+        {!canExecute && !canRequest && (
+          <div className="rounded-3xl border border-warning/40 bg-warning/10 p-4 text-xs">
+            Seu perfil pode buscar pedidos, mas não pode estornar nem solicitar reembolsos.
+          </div>
+        )}
+      </aside>
+
+      {target && (
+        <RefundDialog
+          sale={target}
+          operator={operator}
+          canExecute={canExecute}
+          canRequest={canRequest}
+          onClose={() => setTarget(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+function RefundDialog({ sale, operator, canExecute, canRequest, onClose }: { sale: Sale; operator: string; canExecute: boolean; canRequest: boolean; onClose: () => void }) {
+  const max = sale.price - (sale.refunded ?? 0);
+  const [amount, setAmount] = useState(max);
+  const [reason, setReason] = useState("");
+  const [err, setErr] = useState<string | null>(null);
+  const [done, setDone] = useState<string | null>(null);
+
+  const submit = (mode: "execute" | "request") => {
+    setErr(null);
+    try {
+      if (mode === "execute") {
+        executeRefund({ saleId: sale.id, amount, reason, by: operator });
+        setDone(`Estornado R$ ${amount} para o cliente.`);
+      } else {
+        createRefundRequest({ saleId: sale.id, amount, reason, requestedBy: operator });
+        setDone(`Solicitação enviada ao Admin (R$ ${amount}).`);
+      }
+    } catch (e: any) { setErr(e?.message ?? "Erro"); }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-foreground/40 p-4" onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-md rounded-3xl border-2 border-foreground bg-card p-6 shadow-pop">
+        <div className="flex items-center justify-between">
+          <h3 className="font-serif text-2xl">Reembolso</h3>
+          <button onClick={onClose} className="rounded-full bg-secondary px-3 py-1 text-xs font-semibold">Fechar</button>
+        </div>
+
+        {done ? (
+          <div className="mt-5">
+            <div className="rounded-2xl border border-success/40 bg-success/10 p-4 text-sm text-success">{done}</div>
+            <button onClick={onClose} className="mt-4 w-full rounded-full bg-primary py-3 font-semibold text-primary-foreground">OK</button>
+          </div>
+        ) : (
+          <>
+            <div className="mt-3 rounded-2xl bg-secondary p-3 text-sm">
+              <div className="font-serif text-base">{sale.product}</div>
+              <div className="text-[11px] text-muted-foreground">
+                R${sale.price} · {sale.barraca}
+                {sale.walletCode && <> · ficha <code className="font-mono">{sale.walletCode}</code></>}
+              </div>
+            </div>
+
+            <label className="mt-4 block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Valor a reembolsar (máx R${max})</label>
+            <input
+              type="number" min={1} max={max}
+              value={amount}
+              onChange={(e) => setAmount(Math.max(1, Math.min(max, Number(e.target.value) || 0)))}
+              className="mt-1 w-full rounded-xl border border-border bg-background px-4 py-3 text-center font-display text-xl"
+            />
+            <div className="mt-2 flex gap-2">
+              <button onClick={() => setAmount(max)} className="flex-1 rounded-full border border-border py-1.5 text-xs">Total</button>
+              <button onClick={() => setAmount(Math.max(1, Math.round(max / 2)))} className="flex-1 rounded-full border border-border py-1.5 text-xs">Metade</button>
+            </div>
+
+            <label className="mt-4 block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Motivo (obrigatório)</label>
+            <textarea
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              rows={3}
+              placeholder="Ex.: produto entregue errado, cliente desistiu, item estragado..."
+              className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
+            />
+
+            {err && <div className="mt-3 rounded-xl border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">{err}</div>}
+
+            <div className="mt-5 grid gap-2">
+              {canExecute && (
+                <button
+                  onClick={() => submit("execute")}
+                  className="rounded-full bg-success py-3 font-semibold text-success-foreground shadow-pop"
+                >Estornar agora (R$ {amount})</button>
+              )}
+              {canRequest && (
+                <button
+                  onClick={() => submit("request")}
+                  className="rounded-full border-2 border-foreground bg-card py-3 font-semibold"
+                >Solicitar aprovação do Admin</button>
+              )}
+              {!canExecute && !canRequest && (
+                <div className="rounded-xl bg-secondary p-3 text-center text-xs text-muted-foreground">Seu perfil não tem permissão de reembolso.</div>
+              )}
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}

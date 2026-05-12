@@ -594,6 +594,18 @@ function BuyView({ onDone }: { onDone: (m: string) => void }) {
   );
 }
 
+function Row({ label, sub, value, strong }: { label: string; sub?: string; value: string; strong?: boolean }) {
+  return (
+    <div className="flex items-start justify-between gap-2">
+      <div className="min-w-0">
+        <div className={`truncate ${strong ? "font-semibold" : ""}`}>{label}</div>
+        {sub && <div className="text-[10px] text-muted-foreground">{sub}</div>}
+      </div>
+      <div className={`shrink-0 font-display ${strong ? "text-primary" : ""}`}>{value}</div>
+    </div>
+  );
+}
+
 /* ----------------------------- Transfer sheet ------------------------- */
 
 function TransferSheet({ onClose, onDone }: { onClose: () => void; onDone: (m: string) => void }) {

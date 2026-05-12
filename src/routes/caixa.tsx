@@ -1,7 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
-import { QRCodeSVG } from "qrcode.react";
-import { Banknote, Printer, ScanLine, X, Search, Undo2, ShieldAlert } from "lucide-react";
+import { useMemo, useRef, useState } from "react";
+import { QRCodeCanvas, QRCodeSVG } from "qrcode.react";
+import { Banknote, Download, FileDown, Printer, ScanLine, Search, ShieldAlert, Undo2, X } from "lucide-react";
+import { jsPDF } from "jspdf";
 import { SiteHeader } from "@/components/site-header";
 import { Bunting } from "@/components/bunting";
 import { createRefundRequest, executeRefund, issueWallet, searchSales, useStore, type Sale, type Wallet } from "@/lib/festa-store";
@@ -278,24 +279,166 @@ function Receipt({
   onPrint: () => void;
 }) {
   const qrValue = `festacash://wallet/${wallet.code}`;
+  const qrCanvasRef = useRef<HTMLDivElement | null>(null);
+  const [phone, setPhone] = useState("");
+  const [shareOpen, setShareOpen] = useState(false);
+  const [busy, setBusy] = useState<null | "pdf" | "share">(null);
+
+  const buildPdf = async (): Promise<{ doc: jsPDF; blob: Blob; filename: string }> => {
+    const doc = new jsPDF({ unit: "mm", format: "a6", orientation: "portrait" });
+    const W = doc.internal.pageSize.getWidth();
+    const total = wallet.balance + wallet.consumed;
+
+    // Borda
+    doc.setDrawColor(40);
+    doc.setLineDashPattern([1.5, 1.2], 0);
+    doc.roundedRect(4, 4, W - 8, doc.internal.pageSize.getHeight() - 8, 4, 4);
+    doc.setLineDashPattern([], 0);
+
+    // Cabeçalho
+    doc.setFont("helvetica", "bold"); doc.setFontSize(14);
+    doc.text(event.name, W / 2, 14, { align: "center" });
+    doc.setFont("helvetica", "normal"); doc.setFontSize(8);
+    doc.text(`${event.org} · ${event.date}`, W / 2, 19, { align: "center" });
+
+    doc.setFontSize(7);
+    doc.text("FestaCash · Ficha digital", W / 2, 24, { align: "center" });
+
+    // QR
+    const canvas = qrCanvasRef.current?.querySelector("canvas") as HTMLCanvasElement | null;
+    if (canvas) {
+      const dataUrl = canvas.toDataURL("image/png");
+      const qrSize = 50;
+      doc.addImage(dataUrl, "PNG", (W - qrSize) / 2, 28, qrSize, qrSize);
+    }
+
+    // Saldo
+    doc.setFont("helvetica", "bold"); doc.setFontSize(22);
+    doc.text(`R$ ${total}`, W / 2, 88, { align: "center" });
+    doc.setFont("courier", "normal"); doc.setFontSize(11);
+    doc.text(wallet.code, W / 2, 95, { align: "center" });
+
+    if (wallet.holder) {
+      doc.setFont("helvetica", "normal"); doc.setFontSize(9);
+      doc.text(wallet.holder, W / 2, 101, { align: "center" });
+    }
+
+    // Rodapé instruções
+    doc.setFont("helvetica", "normal"); doc.setFontSize(7);
+    const tip = wallet.passphrase
+      ? "Mostre este QR na barraca. Tem palavra-chave — combine de boca."
+      : "Mostre este QR na barraca para pagar seus pedidos.";
+    const lines = doc.splitTextToSize(tip, W - 16);
+    doc.text(lines, W / 2, 110, { align: "center" });
+
+    doc.setFontSize(6);
+    doc.text(`Emitida ${new Date(wallet.issuedAt).toLocaleString("pt-BR")} · ${method}`, W / 2, 130, { align: "center" });
+
+    const blob = doc.output("blob");
+    return { doc, blob, filename: `ficha-${wallet.code}.pdf` };
+  };
+
+  const downloadPdf = async () => {
+    setBusy("pdf");
+    try {
+      const { doc, filename } = await buildPdf();
+      doc.save(filename);
+    } finally { setBusy(null); }
+  };
+
+  const shareWhatsApp = async () => {
+    setBusy("share");
+    try {
+      const { blob, filename } = await buildPdf();
+      const file = new File([blob], filename, { type: "application/pdf" });
+      const text = `Sua ficha do ${event.name}\nCódigo: ${wallet.code}\nSaldo: R$ ${wallet.balance + wallet.consumed}${wallet.passphrase ? "\n🔒 Tem palavra-chave (combinada no caixa)." : ""}`;
+
+      // Tenta Web Share API (mobile) com arquivo
+      const navAny = navigator as any;
+      if (navAny.canShare?.({ files: [file] })) {
+        try {
+          await navAny.share({ files: [file], text, title: "Ficha FestaCash" });
+          return;
+        } catch { /* user cancelled / fallback */ }
+      }
+      // Fallback: baixa o PDF e abre WhatsApp Web/App com texto
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = filename; a.click();
+      URL.revokeObjectURL(url);
+      const cleanPhone = phone.replace(/\D/g, "");
+      const wa = cleanPhone
+        ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent(text + "\n\n(Anexe a ficha que acabou de baixar)")}` 
+        : `https://wa.me/?text=${encodeURIComponent(text + "\n\n(Anexe a ficha que acabou de baixar)")}`;
+      window.open(wa, "_blank", "noopener,noreferrer");
+    } finally { setBusy(null); setShareOpen(false); }
+  };
 
   return (
     <>
+      {/* QR oculto pra extrair PNG no PDF */}
+      <div ref={qrCanvasRef} style={{ position: "absolute", left: -9999, top: -9999 }}>
+        <QRCodeCanvas value={qrValue} size={512} level="H" includeMargin />
+      </div>
+
       {/* Toolbar (não imprime) */}
       <div className="mt-6 flex flex-wrap items-center justify-between gap-3 print:hidden">
         <div>
           <div className="text-xs uppercase tracking-widest text-muted-foreground">Ficha emitida</div>
           <div className="font-serif text-2xl">R$ {wallet.balance + wallet.consumed} liberados</div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <button onClick={onClose} className="inline-flex items-center gap-1.5 rounded-full border border-border px-4 py-2 text-sm font-semibold">
             <X className="h-4 w-4" /> Nova ficha
           </button>
-          <button onClick={onPrint} className="inline-flex items-center gap-1.5 rounded-full bg-foreground px-5 py-2 text-sm font-semibold text-background shadow-pop">
+          <button
+            onClick={downloadPdf}
+            disabled={busy !== null}
+            className="inline-flex items-center gap-1.5 rounded-full border-2 border-foreground bg-card px-4 py-2 text-sm font-semibold disabled:opacity-50"
+          >
+            <FileDown className="h-4 w-4" /> {busy === "pdf" ? "Gerando..." : "Baixar PDF"}
+          </button>
+          <button
+            onClick={() => setShareOpen(true)}
+            disabled={busy !== null}
+            className="inline-flex items-center gap-1.5 rounded-full bg-success px-4 py-2 text-sm font-semibold text-success-foreground shadow-pop disabled:opacity-50"
+          >
+            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor"><path d="M19.05 4.91A9.82 9.82 0 0 0 12 2a9.9 9.9 0 0 0-8.41 15.04L2 22l5.13-1.52A9.92 9.92 0 0 0 12 22a9.96 9.96 0 0 0 7.05-17.09zM12 20.27a8.2 8.2 0 0 1-4.18-1.15l-.3-.18-3.05.9.81-2.97-.2-.31A8.27 8.27 0 1 1 12 20.27zm4.55-6.16c-.25-.12-1.47-.72-1.7-.81-.23-.08-.4-.12-.56.12-.16.25-.64.81-.79.97-.15.16-.29.18-.54.06-.25-.12-1.05-.39-2-1.23-.74-.66-1.24-1.47-1.38-1.72-.14-.25-.02-.39.11-.51.11-.11.25-.29.37-.43.12-.14.16-.25.25-.41.08-.16.04-.31-.02-.43-.06-.12-.56-1.34-.76-1.84-.2-.49-.4-.42-.56-.43-.14-.01-.31-.01-.47-.01-.16 0-.43.06-.65.31-.22.25-.85.83-.85 2.03 0 1.2.87 2.36.99 2.52.12.16 1.71 2.61 4.14 3.66.58.25 1.03.4 1.39.51.58.18 1.11.16 1.53.1.47-.07 1.47-.6 1.67-1.18.21-.58.21-1.07.15-1.18-.06-.11-.22-.18-.47-.3z"/></svg>
+            Enviar WhatsApp
+          </button>
+          <button onClick={onPrint} className="inline-flex items-center gap-1.5 rounded-full bg-foreground px-4 py-2 text-sm font-semibold text-background shadow-pop">
             <Printer className="h-4 w-4" /> Imprimir
           </button>
         </div>
       </div>
+
+      {shareOpen && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-foreground/40 p-4" onClick={() => setShareOpen(false)}>
+          <div onClick={(e) => e.stopPropagation()} className="w-full max-w-sm rounded-3xl border-2 border-foreground bg-card p-6 shadow-pop">
+            <h3 className="font-serif text-2xl">Enviar pelo WhatsApp</h3>
+            <p className="mt-1 text-xs text-muted-foreground">No celular, abre direto o WhatsApp com a ficha em PDF anexada. No computador, baixa o PDF e abre a conversa pra você anexar.</p>
+            <label className="mt-4 block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Telefone do cliente (opcional)</label>
+            <input
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              inputMode="tel"
+              placeholder="55 11 9XXXX-XXXX"
+              className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
+            />
+            <p className="mt-1 text-[10px] text-muted-foreground">Inclua o DDI (55 = Brasil). Em branco, abre seleção de contato.</p>
+            <div className="mt-5 flex justify-end gap-2">
+              <button onClick={() => setShareOpen(false)} className="rounded-full border border-border px-4 py-2 text-sm">Cancelar</button>
+              <button
+                onClick={shareWhatsApp}
+                disabled={busy === "share"}
+                className="inline-flex items-center gap-1.5 rounded-full bg-success px-5 py-2 text-sm font-semibold text-success-foreground shadow-pop disabled:opacity-50"
+              >
+                <Download className="h-4 w-4" /> {busy === "share" ? "Preparando..." : "Enviar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Ticket — duas vias (cliente + canhoto) */}
       <div className="mt-5 grid gap-4 sm:grid-cols-2 print:mt-0 print:grid-cols-2 print:gap-0">

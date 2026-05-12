@@ -9,7 +9,9 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as UsuariosRouteImport } from './routes/usuarios'
 import { Route as OwnerRouteImport } from './routes/owner'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as FolderRouteImport } from './routes/folder'
 import { Route as ClienteRouteImport } from './routes/cliente'
 import { Route as CatalogoRouteImport } from './routes/catalogo'
@@ -18,9 +20,19 @@ import { Route as BarracaRouteImport } from './routes/barraca'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 
+const UsuariosRoute = UsuariosRouteImport.update({
+  id: '/usuarios',
+  path: '/usuarios',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const OwnerRoute = OwnerRouteImport.update({
   id: '/owner',
   path: '/owner',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FolderRoute = FolderRouteImport.update({
@@ -67,7 +79,9 @@ export interface FileRoutesByFullPath {
   '/catalogo': typeof CatalogoRoute
   '/cliente': typeof ClienteRoute
   '/folder': typeof FolderRoute
+  '/login': typeof LoginRoute
   '/owner': typeof OwnerRoute
+  '/usuarios': typeof UsuariosRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -77,7 +91,9 @@ export interface FileRoutesByTo {
   '/catalogo': typeof CatalogoRoute
   '/cliente': typeof ClienteRoute
   '/folder': typeof FolderRoute
+  '/login': typeof LoginRoute
   '/owner': typeof OwnerRoute
+  '/usuarios': typeof UsuariosRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -88,7 +104,9 @@ export interface FileRoutesById {
   '/catalogo': typeof CatalogoRoute
   '/cliente': typeof ClienteRoute
   '/folder': typeof FolderRoute
+  '/login': typeof LoginRoute
   '/owner': typeof OwnerRoute
+  '/usuarios': typeof UsuariosRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -100,7 +118,9 @@ export interface FileRouteTypes {
     | '/catalogo'
     | '/cliente'
     | '/folder'
+    | '/login'
     | '/owner'
+    | '/usuarios'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -110,7 +130,9 @@ export interface FileRouteTypes {
     | '/catalogo'
     | '/cliente'
     | '/folder'
+    | '/login'
     | '/owner'
+    | '/usuarios'
   id:
     | '__root__'
     | '/'
@@ -120,7 +142,9 @@ export interface FileRouteTypes {
     | '/catalogo'
     | '/cliente'
     | '/folder'
+    | '/login'
     | '/owner'
+    | '/usuarios'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -131,16 +155,32 @@ export interface RootRouteChildren {
   CatalogoRoute: typeof CatalogoRoute
   ClienteRoute: typeof ClienteRoute
   FolderRoute: typeof FolderRoute
+  LoginRoute: typeof LoginRoute
   OwnerRoute: typeof OwnerRoute
+  UsuariosRoute: typeof UsuariosRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/usuarios': {
+      id: '/usuarios'
+      path: '/usuarios'
+      fullPath: '/usuarios'
+      preLoaderRoute: typeof UsuariosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/owner': {
       id: '/owner'
       path: '/owner'
       fullPath: '/owner'
       preLoaderRoute: typeof OwnerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/folder': {
@@ -203,8 +243,20 @@ const rootRouteChildren: RootRouteChildren = {
   CatalogoRoute: CatalogoRoute,
   ClienteRoute: ClienteRoute,
   FolderRoute: FolderRoute,
+  LoginRoute: LoginRoute,
   OwnerRoute: OwnerRoute,
+  UsuariosRoute: UsuariosRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

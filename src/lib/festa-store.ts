@@ -447,6 +447,7 @@ export function closeTopUps() {
   const s = read();
   s.salesStatus.topUps = "closed";
   s.salesStatus.topUpsClosedAt = Date.now();
+  pushNotif(s, { audience: "all", kind: "warn", title: "Recargas encerradas", body: "Não é possível adicionar crédito. Fichas existentes seguem valendo." });
   write(s);
 }
 
@@ -457,12 +458,14 @@ export function closeAllSales(walletsActive: boolean) {
   s.salesStatus.walletsActiveAfterClose = walletsActive;
   s.salesStatus.closedAt = Date.now();
   if (!s.salesStatus.topUpsClosedAt) s.salesStatus.topUpsClosedAt = Date.now();
+  pushNotif(s, { audience: "all", kind: "danger", title: "Vendas encerradas", body: walletsActive ? "Fichas físicas ainda valem." : "Tudo bloqueado." });
   write(s);
 }
 
 export function reopenSales() {
   const s = read();
   s.salesStatus = { topUps: "open", charges: "open", walletsActiveAfterClose: true };
+  pushNotif(s, { audience: "all", kind: "success", title: "Vendas reabertas", body: "Recargas e cobranças voltaram." });
   write(s);
 }
 

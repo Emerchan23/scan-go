@@ -572,58 +572,83 @@ function BuyView({ onDone }: { onDone: (m: string) => void }) {
   );
 }
 
-/* ----------------------------- Transfer view -------------------------- */
+/* ----------------------------- Transfer sheet ------------------------- */
 
-function TransferView({ onDone }: { onDone: (m: string) => void }) {
+function TransferSheet({ onClose, onDone }: { onClose: () => void; onDone: (m: string) => void }) {
   const [amount, setAmount] = useState(10);
 
   const send = () => {
-    try {
-      transfer(amount);
-      onDone(`R$ ${amount},00 enviados.`);
-    } catch (e: any) {
-      onDone(e.message);
-    }
+    try { transfer(amount); onDone(`R$ ${amount},00 enviados.`); }
+    catch (e: any) { onDone(e.message); }
   };
 
   return (
-    <div className="pt-2">
-      <h1 className="font-serif text-2xl">Enviar para um amigo</h1>
-      <p className="text-sm text-muted-foreground">Aproxime os celulares e escaneie o QR.</p>
-
-      <div className="mt-5 grid place-items-center rounded-3xl border-2 border-dashed border-border bg-paper py-12 text-center">
-        <div className="font-display text-5xl">📷</div>
-        <div className="mt-2 text-sm text-muted-foreground">Toque para abrir a câmera</div>
-      </div>
-
-      <label className="mt-5 block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Valor</label>
-      <input
-        type="number"
-        value={amount}
-        onChange={(e) => setAmount(Number(e.target.value))}
-        className="mt-1 w-full rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+    <>
+      <motion.div
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        onClick={onClose}
+        className="absolute inset-0 z-30 bg-foreground/40"
       />
+      <motion.div
+        initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+        transition={{ type: "spring", damping: 28, stiffness: 260 }}
+        className="absolute inset-x-0 bottom-0 z-40 rounded-t-3xl border-t-2 border-foreground bg-card p-5 shadow-pop"
+      >
+        <div className="mx-auto h-1.5 w-12 rounded-full bg-foreground/20" />
+        <h3 className="mt-3 font-serif text-xl">Enviar para um amigo</h3>
+        <p className="text-sm text-muted-foreground">Aproxime os celulares e escaneie o QR.</p>
 
-      <button onClick={send} className="mt-5 w-full rounded-full bg-foreground py-3.5 font-semibold text-background active:scale-[0.98] transition">
-        Enviar R$ {amount},00
-      </button>
-    </div>
+        <div className="mt-4 grid place-items-center rounded-2xl border-2 border-dashed border-border bg-paper py-8 text-center">
+          <div className="font-display text-4xl">📷</div>
+          <div className="mt-1 text-xs text-muted-foreground">Toque para abrir a câmera</div>
+        </div>
+
+        <label className="mt-4 block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Valor</label>
+        <input
+          type="number"
+          value={amount}
+          onChange={(e) => setAmount(Number(e.target.value))}
+          className="mt-1 w-full rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+        />
+
+        <div className="mt-4 flex gap-2">
+          <button onClick={onClose} className="flex-1 rounded-full border border-border py-3 text-sm font-semibold">Cancelar</button>
+          <button onClick={send} className="flex-1 rounded-full bg-foreground py-3 font-semibold text-background active:scale-[0.98] transition">
+            Enviar R$ {amount}
+          </button>
+        </div>
+      </motion.div>
+    </>
   );
 }
 
 /* ------------------------------ History ------------------------------- */
 
-function HistoryView() {
+function HistoryView({ onToast }: { onToast: (m: string) => void }) {
   const s = useStore();
   const list = s.sales.filter((x) => x.user === s.user.name);
+  const total = list.reduce((a, x) => a + x.price, 0);
 
   return (
     <div className="pt-2">
-      <h1 className="font-serif text-2xl">Histórico</h1>
-      <p className="text-sm text-muted-foreground">Tudo que você consumiu na festa.</p>
+      <h1 className="font-serif text-2xl">Extrato</h1>
+      <p className="text-sm text-muted-foreground">Tudo que você comprou e consumiu na festa.</p>
+
+      <div className="mt-4 grid grid-cols-2 gap-2">
+        <div className="rounded-2xl bg-secondary p-4">
+          <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Saldo atual</div>
+          <div className="font-display text-2xl text-primary">R$ {s.user.balance}</div>
+        </div>
+        <div className="rounded-2xl bg-secondary p-4">
+          <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Consumido</div>
+          <div className="font-display text-2xl">R$ {total}</div>
+        </div>
+      </div>
+
+      <PolicyBanner onAction={onToast} />
 
       {list.length === 0 ? (
-        <div className="mt-8 grid place-items-center rounded-2xl border-2 border-dashed border-border py-12 text-center">
+        <div className="mt-6 grid place-items-center rounded-2xl border-2 border-dashed border-border py-12 text-center">
           <div className="font-display text-4xl">🎈</div>
           <p className="mt-2 text-sm text-muted-foreground">Nada aqui ainda. Vai lá!</p>
         </div>
@@ -650,10 +675,10 @@ function HistoryView() {
 function BottomBar({ tab, onTab }: { tab: Tab; onTab: (t: Tab) => void }) {
   const items: { id: Tab; label: string; icon: React.ReactNode }[] = [
     { id: "home", label: "Início", icon: <Home className="h-5 w-5" /> },
-    { id: "qr", label: "QR", icon: <QrIcon className="h-5 w-5" /> },
+    { id: "catalogo", label: "Catálogo", icon: <ShoppingBag className="h-5 w-5" /> },
     { id: "comprar", label: "Comprar", icon: <Plus className="h-6 w-6" /> },
-    { id: "transferir", label: "Enviar", icon: <Send className="h-5 w-5" /> },
-    { id: "historico", label: "Extrato", icon: <Settings className="h-5 w-5" /> },
+    { id: "qr", label: "QR", icon: <QrIcon className="h-5 w-5" /> },
+    { id: "historico", label: "Extrato", icon: <History className="h-5 w-5" /> },
   ];
 
   return (

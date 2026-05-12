@@ -67,14 +67,17 @@ function AdminPage() {
           const fee = s.platformFee ?? 0.02;
           const platformCut = Math.round(totalSold * fee * 100) / 100;
           const yourCut = Math.round((totalSold - platformCut) * 100) / 100;
+          const connected = s.split.status === "connected";
           return (
             <div className="mt-6 rounded-3xl border-2 border-foreground bg-card p-6 shadow-pop">
               <div className="flex items-start justify-between gap-4 flex-wrap">
                 <div>
                   <h2 className="font-serif text-2xl">Faturamento da festa</h2>
-                  <p className="text-sm text-muted-foreground">Cada compra de crédito é dividida automaticamente via Mercado Pago. Você não precisa fazer nada.</p>
+                  <p className="text-sm text-muted-foreground">Cada compra de crédito é dividida automaticamente via Mercado Pago. A FestaCash <span className="font-semibold">nunca toca no seu dinheiro</span> — ele cai direto na sua conta.</p>
                 </div>
-                <span className="rounded-full bg-success/15 px-3 py-1 text-xs font-semibold text-success">✓ Split ativo</span>
+                <span className={`rounded-full px-3 py-1 text-xs font-semibold ${connected ? "bg-success/15 text-success" : "bg-warning/15 text-warning"}`}>
+                  {connected ? "✓ Split ativo" : "⚠ Conectar conta"}
+                </span>
               </div>
 
               <div className="mt-5 grid gap-3 md:grid-cols-3">
@@ -87,9 +90,9 @@ function AdminPage() {
                   <div className="font-display text-3xl mt-1">− R$ {platformCut.toLocaleString("pt-BR")}</div>
                 </div>
                 <div className="rounded-2xl bg-success/15 p-5 ring-2 ring-success/30">
-                  <div className="text-xs font-semibold uppercase tracking-wider text-success">Vai pra sua conta</div>
+                  <div className="text-xs font-semibold uppercase tracking-wider text-success">Cai na sua conta MP</div>
                   <div className="font-display text-3xl mt-1 text-success">R$ {yourCut.toLocaleString("pt-BR")}</div>
-                  <div className="text-xs text-muted-foreground mt-1">Mercado Pago · CNPJ ****/0001-23</div>
+                  <div className="text-xs text-muted-foreground mt-1">{connected ? `${s.split.holder} · ${s.split.document}` : "Conecte sua conta abaixo"}</div>
                 </div>
               </div>
             </div>

@@ -141,7 +141,51 @@ export type RefundLog = {
   via: "direct" | "approved";
 };
 
-const KEY = "festacash:v5";
+const KEY = "festacash:v7";
+
+/** Notificação interna do app — sino do cliente / admin. */
+export type NotificationAudience = "client" | "admin" | "all";
+export type NotificationKind = "info" | "warn" | "danger" | "success";
+export type Notification = {
+  id: string;
+  at: number;
+  audience: NotificationAudience;
+  kind: NotificationKind;
+  title: string;
+  body?: string;
+  /** Quem leu (set de "client" e/ou staff id). */
+  readBy: string[];
+  /** Pra notificações de "filho gastou" — dono do saldo (user.name). */
+  forUser?: string;
+};
+
+/** Evento da organização — multi-evento. */
+export type FestaEvent = {
+  id: string;
+  name: string;
+  date: string;
+  org: string;
+  status: "active" | "archived";
+  createdAt: number;
+  archivedAt?: number;
+};
+
+/** Turno do caixa — abertura/fechamento + conferência. */
+export type CashShift = {
+  id: string;
+  staffId: string;
+  staffName: string;
+  openedAt: number;
+  closedAt?: number;
+  /** Snapshot quando fechou. */
+  totalIssued?: number;
+  walletsIssued?: number;
+  /** Valor que o operador contou na gaveta. */
+  countedCash?: number;
+  /** countedCash - totalIssued (positivo = sobra; negativo = falta). */
+  diff?: number;
+  notes?: string;
+};
 
 /** O que acontece com o saldo não usado quando o evento acaba. */
 export type CreditPolicy = {
@@ -193,9 +237,17 @@ type State = {
   stockMoves: StockMovement[];
   /** O quanto o cliente vê de estoque no catálogo. */
   clientStockVisibility: StockVisibility;
+  notifications: Notification[];
+  events: FestaEvent[];
+  currentEventId: string;
+  shifts: CashShift[];
+  /** Limiar (R$) acima do qual recargas viram notificação. */
+  bigSpendAlert: number;
+  /** Tema preferido (persistido). */
+  theme: "light" | "dark";
 };
 
-const KEY_BUMP = "v6";
+const KEY_BUMP = "v7";
 void KEY_BUMP;
 
 const builtInRoles: Role[] = [
@@ -270,6 +322,14 @@ const initial: State = {
   salesStatus: { topUps: "open", charges: "open", walletsActiveAfterClose: true },
   stockMoves: [],
   clientStockVisibility: "esgotado",
+  notifications: [],
+  events: [
+    { id: "ev_main", name: "Arraiá do Sagrado Coração", date: "21 de Junho", org: "Escola Sagrado Coração", status: "active", createdAt: Date.now() },
+  ],
+  currentEventId: "ev_main",
+  shifts: [],
+  bigSpendAlert: 100,
+  theme: "light",
 };
 
 function read(): State {
@@ -296,6 +356,10 @@ export function addCredits(amount: number, name?: string) {
   if (s.salesStatus.topUps === "closed") throw new Error("Recargas encerradas pelo organizador");
   if (name) s.user.name = name;
   s.user.balance += amount;
+  pushNotif(s, { audience: "client", forUser: s.user.name, kind: "success", title: `Recarga de R$ ${amount}`, body: `Saldo agora: R$ ${s.user.balance}` });
+  if (amount >= s.bigSpendAlert) {
+    pushNotif(s, { audience: "admin", kind: "info", title: `💰 Recarga grande: R$ ${amount}`, body: `${s.user.name} adicionou crédito.` });
+  }
   write(s);
 }
 
@@ -351,7 +415,12 @@ export function chargeProduct(productId: string, walletCode?: string, passphrase
     newBalance = s.user.balance;
   }
 
-  if (typeof p.stock === "number") p.stock = Math.max(0, p.stock - 1);
+  if (typeof p.stock === "number") {
+    p.stock = Math.max(0, p.stock - 1);
+    const alert = p.stockAlert ?? 10;
+    if (p.stock === 0) pushNotif(s, { audience: "admin", kind: "danger", title: `${p.emoji} ${p.name} esgotou`, body: `${p.barraca} — produto fora de estoque.` });
+    else if (p.stock === alert) pushNotif(s, { audience: "admin", kind: "warn", title: `${p.emoji} ${p.name} acabando`, body: `Restam ${p.stock} unidades em ${p.barraca}.` });
+  }
 
   s.sales.unshift({
     id: "s_" + Math.random().toString(36).slice(2, 9),
@@ -364,6 +433,10 @@ export function chargeProduct(productId: string, walletCode?: string, passphrase
     walletCode,
     refunded: 0,
   });
+  // Notif pro dono do saldo (cliente)
+  if (!walletCode) {
+    pushNotif(s, { audience: "client", forUser: payerName, kind: "info", title: `Compra: ${p.name}`, body: `R$ ${p.price} em ${p.barraca}. Saldo: R$ ${newBalance}.` });
+  }
   write(s);
   return { product: p, balance: newBalance };
 }
@@ -374,6 +447,7 @@ export function closeTopUps() {
   const s = read();
   s.salesStatus.topUps = "closed";
   s.salesStatus.topUpsClosedAt = Date.now();
+  pushNotif(s, { audience: "all", kind: "warn", title: "Recargas encerradas", body: "Não é possível adicionar crédito. Fichas existentes seguem valendo." });
   write(s);
 }
 
@@ -384,12 +458,14 @@ export function closeAllSales(walletsActive: boolean) {
   s.salesStatus.walletsActiveAfterClose = walletsActive;
   s.salesStatus.closedAt = Date.now();
   if (!s.salesStatus.topUpsClosedAt) s.salesStatus.topUpsClosedAt = Date.now();
+  pushNotif(s, { audience: "all", kind: "danger", title: "Vendas encerradas", body: walletsActive ? "Fichas físicas ainda valem." : "Tudo bloqueado." });
   write(s);
 }
 
 export function reopenSales() {
   const s = read();
   s.salesStatus = { topUps: "open", charges: "open", walletsActiveAfterClose: true };
+  pushNotif(s, { audience: "all", kind: "success", title: "Vendas reabertas", body: "Recargas e cobranças voltaram." });
   write(s);
 }
 
@@ -409,6 +485,7 @@ export function restockProduct(opts: { productId: string; qty: number; by: strin
     at: Date.now(),
     note: opts.note?.trim() || undefined,
   });
+  pushNotif(s, { audience: "admin", kind: "success", title: `Reposição: +${opts.qty} ${p.emoji} ${p.name}`, body: `Por ${opts.by}. Estoque: ${p.stock}.` });
   write(s);
 }
 
@@ -764,6 +841,217 @@ export function searchSales(query: string): Sale[] {
       x.product.toUpperCase().includes(q),
   ).slice(0, 25);
 }
+
+/* ----------------------------- Notificações ----------------------------- */
+
+function pushNotif(s: State, n: Omit<Notification, "id" | "at" | "readBy">) {
+  s.notifications.unshift({
+    id: "n_" + Math.random().toString(36).slice(2, 9),
+    at: Date.now(),
+    readBy: [],
+    ...n,
+  });
+  // Limita a 200
+  if (s.notifications.length > 200) s.notifications.length = 200;
+}
+
+export function notify(n: Omit<Notification, "id" | "at" | "readBy">) {
+  const s = read();
+  pushNotif(s, n);
+  write(s);
+}
+
+export function markNotificationsRead(audience: NotificationAudience, who: string) {
+  const s = read();
+  s.notifications.forEach((n) => {
+    if (n.audience === audience || n.audience === "all") {
+      if (!n.readBy.includes(who)) n.readBy.push(who);
+    }
+  });
+  write(s);
+}
+
+export function clearNotifications(audience: NotificationAudience) {
+  const s = read();
+  s.notifications = s.notifications.filter((n) => n.audience !== audience && n.audience !== "all");
+  write(s);
+}
+
+export function getNotificationsFor(audience: NotificationAudience, who?: string): Notification[] {
+  const s = read();
+  return s.notifications.filter((n) => {
+    if (n.audience !== audience && n.audience !== "all") return false;
+    if (audience === "client" && n.forUser && who && n.forUser !== who) return false;
+    return true;
+  });
+}
+
+/* ----------------------------- Cancel last sale ------------------------- */
+
+/** Reverte uma venda: devolve saldo, repõe estoque, marca como estornada. */
+export function cancelSale(saleId: string, by: string, reason?: string) {
+  const s = read();
+  const sale = s.sales.find((x) => x.id === saleId);
+  if (!sale) throw new Error("Venda não encontrada");
+  if ((sale.refunded ?? 0) >= sale.price) throw new Error("Venda já estornada");
+  // Devolve saldo
+  if (sale.walletCode) {
+    const w = s.wallets.find((x) => x.code === sale.walletCode);
+    if (w) { w.balance += sale.price; w.consumed = Math.max(0, w.consumed - sale.price); }
+  } else {
+    s.user.balance += sale.price;
+  }
+  // Repõe estoque
+  const p = s.products.find((x) => x.id === sale.productId);
+  if (p && typeof p.stock === "number") p.stock += 1;
+  sale.refunded = sale.price;
+  s.refundLogs.unshift({
+    id: "rl_" + Math.random().toString(36).slice(2, 9),
+    saleId: sale.id, walletCode: sale.walletCode, amount: sale.price,
+    reason: reason?.trim() || "Cancelamento da última venda (PDV)",
+    by, at: Date.now(), via: "direct",
+  });
+  pushNotif(s, { audience: "admin", kind: "warn", title: `Venda cancelada: ${sale.product}`, body: `R$ ${sale.price} estornado por ${by}.` });
+  write(s);
+}
+
+/* ----------------------------- Multi-evento ----------------------------- */
+
+export function getCurrentEvent(): FestaEvent {
+  const s = read();
+  return s.events.find((e) => e.id === s.currentEventId) ?? s.events[0];
+}
+
+export function createEvent(data: { name: string; date: string; org: string }) {
+  const s = read();
+  const ev: FestaEvent = {
+    id: "ev_" + Math.random().toString(36).slice(2, 9),
+    name: data.name.trim() || "Novo evento",
+    date: data.date.trim() || new Date().toLocaleDateString("pt-BR"),
+    org: data.org.trim() || s.event.org,
+    status: "active", createdAt: Date.now(),
+  };
+  s.events.unshift(ev);
+  write(s);
+  return ev;
+}
+
+export function switchEvent(id: string) {
+  const s = read();
+  const ev = s.events.find((e) => e.id === id);
+  if (!ev) throw new Error("Evento não encontrado");
+  s.currentEventId = id;
+  s.event = { name: ev.name, date: ev.date, org: ev.org };
+  write(s);
+}
+
+export function archiveEvent(id: string) {
+  const s = read();
+  const ev = s.events.find((e) => e.id === id);
+  if (!ev) return;
+  ev.status = "archived";
+  ev.archivedAt = Date.now();
+  if (s.currentEventId === id) {
+    const next = s.events.find((e) => e.status === "active" && e.id !== id);
+    if (next) { s.currentEventId = next.id; s.event = { name: next.name, date: next.date, org: next.org }; }
+  }
+  write(s);
+}
+
+export function reactivateEvent(id: string) {
+  const s = read();
+  const ev = s.events.find((e) => e.id === id);
+  if (!ev) return;
+  ev.status = "active"; ev.archivedAt = undefined;
+  write(s);
+}
+
+/* ----------------------------- Turno do caixa --------------------------- */
+
+export function openShift(staffId: string, staffName: string): CashShift {
+  const s = read();
+  const open = s.shifts.find((x) => x.staffId === staffId && !x.closedAt);
+  if (open) return open;
+  const sh: CashShift = { id: "sh_" + Math.random().toString(36).slice(2, 9), staffId, staffName, openedAt: Date.now() };
+  s.shifts.unshift(sh);
+  write(s);
+  return sh;
+}
+
+export function getOpenShift(staffId: string): CashShift | null {
+  return read().shifts.find((x) => x.staffId === staffId && !x.closedAt) ?? null;
+}
+
+export function getShiftWallets(shiftId: string): Wallet[] {
+  const s = read();
+  const sh = s.shifts.find((x) => x.id === shiftId);
+  if (!sh) return [];
+  return s.wallets.filter((w) => w.issuedBy === sh.staffName && w.issuedAt >= sh.openedAt && (sh.closedAt ? w.issuedAt <= sh.closedAt : true));
+}
+
+export function closeShift(opts: { shiftId: string; countedCash: number; notes?: string }) {
+  const s = read();
+  const sh = s.shifts.find((x) => x.id === opts.shiftId);
+  if (!sh) throw new Error("Turno não encontrado");
+  if (sh.closedAt) throw new Error("Turno já fechado");
+  const issued = s.wallets.filter((w) => w.issuedBy === sh.staffName && w.issuedAt >= sh.openedAt);
+  const total = issued.reduce((a, w) => a + w.balance + w.consumed, 0);
+  sh.closedAt = Date.now();
+  sh.totalIssued = total;
+  sh.walletsIssued = issued.length;
+  sh.countedCash = opts.countedCash;
+  sh.diff = opts.countedCash - total;
+  sh.notes = opts.notes?.trim() || undefined;
+  pushNotif(s, { audience: "admin", kind: sh.diff === 0 ? "success" : "warn", title: `Turno fechado: ${sh.staffName}`, body: `Sistema R$ ${total} · Físico R$ ${opts.countedCash} · Diferença R$ ${sh.diff}` });
+  write(s);
+  return sh;
+}
+
+/* ----------------------------- Tema ------------------------------------ */
+
+export function setTheme(t: "light" | "dark") {
+  const s = read();
+  s.theme = t;
+  write(s);
+  if (typeof document !== "undefined") {
+    document.documentElement.classList.toggle("dark", t === "dark");
+  }
+}
+
+export function applyStoredTheme() {
+  if (typeof document === "undefined") return;
+  const t = read().theme;
+  document.documentElement.classList.toggle("dark", t === "dark");
+}
+
+/* ----------------------------- Carteiras do cliente --------------------- */
+
+/** Fichas offline geradas pelo cliente atual (a partir do saldo digital dele). */
+export function getMyClientWallets(userName: string): Wallet[] {
+  const s = read();
+  const tag = `Cliente: ${userName}`;
+  return s.wallets.filter((w) => w.issuedBy === tag);
+}
+
+/* ----------------------------- Export CSV ------------------------------ */
+
+export function buildSalesCSV(): string {
+  const s = read();
+  const head = ["id", "data_hora", "barraca", "produto", "preco", "cliente", "ficha", "estornado"];
+  const rows = s.sales.map((x) => [
+    x.id, new Date(x.at).toISOString(), x.barraca, x.product, x.price, x.user, x.walletCode ?? "", x.refunded ?? 0,
+  ]);
+  return [head, ...rows].map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n");
+}
+
+export function buildStockCSV(): string {
+  const s = read();
+  const head = ["id", "produto", "barraca", "estoque", "alerta"];
+  const rows = s.products.filter((p) => typeof p.stock === "number").map((p) => [p.id, p.name, p.barraca, p.stock, p.stockAlert ?? 10]);
+  return [head, ...rows].map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n");
+}
+
+/* ----------------------------- Hooks ------------------------------------ */
 
 import { useEffect, useState } from "react";
 export function useStore() {

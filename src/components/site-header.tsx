@@ -1,6 +1,7 @@
 import { Link, useLocation, useNavigate } from "@tanstack/react-router";
-import { logout, useStore } from "@/lib/festa-store";
-import { LogOut } from "lucide-react";
+import { useEffect } from "react";
+import { applyStoredTheme, logout, setTheme, useStore } from "@/lib/festa-store";
+import { LogOut, Moon, Sun } from "lucide-react";
 
 const items = [
   { to: "/", label: "Início" },
@@ -21,6 +22,8 @@ export function SiteHeader() {
   const myRole = me ? s.roles.find((r) => r.id === me.roleId) : null;
   const myPerms = myRole?.permissions ?? [];
   const canSee = (p?: string) => !p || myPerms.includes("admin.full") || myPerms.includes(p as any);
+
+  useEffect(() => { applyStoredTheme(); }, [s.theme]);
 
   return (
     <header className="sticky top-0 z-30 border-b border-border/60 bg-background/80 backdrop-blur">
@@ -46,6 +49,12 @@ export function SiteHeader() {
           })}
         </nav>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => setTheme(s.theme === "dark" ? "light" : "dark")}
+            className="grid h-9 w-9 place-items-center rounded-full border border-border bg-card text-foreground/80"
+            title="Alternar tema"
+          >{s.theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}</button>
+
           {me ? (
             <>
               <div className="hidden text-right text-xs leading-tight sm:block">

@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useRef, useState } from "react";
 import { SiteHeader } from "@/components/site-header";
 import { Bunting } from "@/components/bunting";
-import { buildSalesCSV, buildStockCSV, closeAllSales, closeTopUps, connectSplit, decideRefundRequest, disconnectSplit, removeBarraca, removeProduct, reopenSales, reset, restockProduct, setClientStockVisibility, setPolicy, stockStatus, toggleBarracaProduct, upsertBarraca, upsertProduct, useStore, type Barraca, type Product, type ProductKind, type StockVisibility } from "@/lib/festa-store";
+import { archiveEvent, buildSalesCSV, buildStockCSV, closeAllSales, closeTopUps, connectSplit, createEvent, decideRefundRequest, disconnectSplit, reactivateEvent, removeBarraca, removeProduct, reopenSales, reset, restockProduct, setClientStockVisibility, setPolicy, stockStatus, switchEvent, toggleBarracaProduct, upsertBarraca, upsertProduct, useStore, type Barraca, type Product, type ProductKind, type StockVisibility } from "@/lib/festa-store";
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 export const Route = createFileRoute("/admin")({
@@ -194,6 +194,8 @@ function AdminPage() {
           <PolicyCard />
         </div>
         <PolicyExplainer />
+
+        <EventManager />
 
         <SalesControlCard />
         <StockManager />

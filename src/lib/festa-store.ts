@@ -76,8 +76,14 @@ const initial: State = {
     mode: "refund",
     refundDays: 7,
     endsAt: Date.now() + 8 * 60 * 60 * 1000, // termina em ~8h pra demo mostrar contagem
+  split: {
+    status: "connected",
+    holder: "Escola Sagrado Coração Ltda",
+    document: "12.***.***/0001-23",
+    email: "tesouraria@sagradocoracao.org.br",
+    mpUserId: "MP-829471",
+    connectedAt: Date.now() - 2 * 86_400_000,
   },
-  products: [
     { id: "p1", name: "Espetinho de carne", price: 12, emoji: "🍢", barraca: "Churrasquinho", kind: "comida", description: "Carne bovina temperada na brasa, com farofa.", stock: 80 },
     { id: "p2", name: "Pastel de queijo", price: 10, emoji: "🥟", barraca: "Pastelaria", kind: "comida", description: "Massa crocante recém-frita." , stock: 60 },
     { id: "p3", name: "Pé-de-moleque", price: 5, emoji: "🥜", barraca: "Doces", kind: "doce", description: "Tradicional, feito na hora." },

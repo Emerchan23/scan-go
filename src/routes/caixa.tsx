@@ -313,9 +313,19 @@ function Ticket({
         <Info k="Emitida" v={new Date(wallet.issuedAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })} />
       </div>
 
+      {wallet.passphrase && variant === "canhoto" && (
+        <div className="mt-3 rounded-xl border-2 border-dashed border-foreground/40 bg-warning/10 px-3 py-2">
+          <div className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">Palavra-chave (controle interno)</div>
+          <div className="font-mono text-base tracking-[0.25em] text-foreground">{wallet.passphrase}</div>
+        </div>
+      )}
+
       {variant === "cliente" ? (
         <p className="mt-4 rounded-xl bg-secondary p-2.5 text-[10px] leading-snug text-muted-foreground">
           📱 Mostre este QR Code na barraca. O atendente escaneia e debita o valor do item. Guarde até o fim do evento.
+          {wallet.passphrase && (
+            <> <span className="font-semibold text-foreground">🔒 Esta ficha tem palavra-chave</span> — combine de boca com quem comprou. A barraca vai pedir antes de cobrar.</>
+          )}
         </p>
       ) : (
         <p className="mt-4 rounded-xl bg-secondary p-2.5 text-[10px] leading-snug text-muted-foreground">

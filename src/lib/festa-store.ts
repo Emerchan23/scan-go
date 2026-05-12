@@ -39,6 +39,22 @@ export type CreditPolicy = {
   endsAt: number;
 };
 
+/** Conta Mercado Pago do organizador onde o split deposita o valor dele. */
+export type SplitAccount = {
+  /** Status da conexão Mercado Pago via OAuth. */
+  status: "pending" | "connected";
+  /** Nome do titular da conta (visível pro cliente final, gera confiança). */
+  holder: string;
+  /** Documento mascarado. */
+  document: string;
+  /** Email da conta MP. */
+  email: string;
+  /** ID público do vendedor no MP (mostra ao cliente que existe conta real). */
+  mpUserId?: string;
+  /** Quando conectou. */
+  connectedAt?: number;
+};
+
 type State = {
   user: User;
   products: Product[];
@@ -48,6 +64,8 @@ type State = {
   platformFee: number;
   /** Política de saldo não consumido. Configurada pelo organizador. */
   policy: CreditPolicy;
+  /** Conta do organizador no Mercado Pago (split). */
+  split: SplitAccount;
 };
 
 const initial: State = {

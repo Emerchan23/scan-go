@@ -263,7 +263,7 @@ function CaixaPage() {
 
 /* ------------------------------ Receipt ------------------------------- */
 
-function Receipt({
+export function Receipt({
   wallet,
   event,
   operator,
@@ -530,7 +530,7 @@ function Info({ k, v }: { k: string; v: string }) {
   );
 }
 
-function PrintStyles() {
+export function PrintStyles() {
   return (
     <style>{`
       @media print {

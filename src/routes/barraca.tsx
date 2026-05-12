@@ -1,9 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Check, ChevronLeft, Minus, Plus, ScanLine, Search, Trash2, X } from "lucide-react";
+import { Check, ChevronLeft, Minus, Plus, ScanLine, Search, Trash2, Undo2, X } from "lucide-react";
 import { InstallPrompt } from "@/components/install-prompt";
-import { chargeProduct, stockStatus, useStore, verifyWalletAccess, type Barraca, type Product, type Wallet } from "@/lib/festa-store";
+import { cancelSale, chargeProduct, stockStatus, useStore, verifyWalletAccess, type Barraca, type Product, type Wallet } from "@/lib/festa-store";
 
 const BARRACA_KEY = "festacash:current-barraca";
 

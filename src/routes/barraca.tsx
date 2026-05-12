@@ -46,6 +46,9 @@ function BarracaApp() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [success, setSuccess] = useState<{ total: number; balance: number; items: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /** Quando preenchida, o pedido é debitado da fichinha (offline). */
+  const [ficha, setFicha] = useState<{ wallet: Wallet; passphrase: string } | null>(null);
+  const [showFichaModal, setShowFichaModal] = useState(false);
 
   // Produtos liberados pra esta barraca (N:N).
   const allowed = useMemo(() => {

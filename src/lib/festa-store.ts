@@ -237,9 +237,17 @@ type State = {
   stockMoves: StockMovement[];
   /** O quanto o cliente vê de estoque no catálogo. */
   clientStockVisibility: StockVisibility;
+  notifications: Notification[];
+  events: FestaEvent[];
+  currentEventId: string;
+  shifts: CashShift[];
+  /** Limiar (R$) acima do qual recargas viram notificação. */
+  bigSpendAlert: number;
+  /** Tema preferido (persistido). */
+  theme: "light" | "dark";
 };
 
-const KEY_BUMP = "v6";
+const KEY_BUMP = "v7";
 void KEY_BUMP;
 
 const builtInRoles: Role[] = [

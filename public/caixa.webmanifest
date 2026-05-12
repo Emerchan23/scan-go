@@ -1,0 +1,17 @@
+{
+  "name": "FestaCash — Caixa",
+  "short_name": "Caixa",
+  "description": "Bilheteria da festa: receba dinheiro/Pix e emita fichinhas com QR de crédito.",
+  "start_url": "/caixa?utm_source=pwa",
+  "scope": "/",
+  "id": "/caixa",
+  "display": "standalone",
+  "display_override": ["standalone", "fullscreen", "minimal-ui"],
+  "orientation": "portrait",
+  "background_color": "#fff8ec",
+  "theme_color": "#a76b00",
+  "categories": ["finance", "business", "productivity"],
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

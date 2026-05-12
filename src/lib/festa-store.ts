@@ -311,6 +311,8 @@ export function chargeProduct(productId: string, walletCode?: string, passphrase
     barraca: p.barraca,
     at: Date.now(),
     user: payerName,
+    walletCode,
+    refunded: 0,
   });
   write(s);
   return { product: p, balance: newBalance };

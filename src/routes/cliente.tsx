@@ -538,6 +538,65 @@ function QrView() {
       </div>
 
       <OfflineWalletCard />
+      <MyOfflineWalletsList />
+    </div>
+  );
+}
+
+function MyOfflineWalletsList() {
+  const s = useStore();
+  const [showQr, setShowQr] = useState<Wallet | null>(null);
+  const list = getMyClientWallets(s.user.name);
+  if (list.length === 0) return null;
+  return (
+    <div className="mt-5 rounded-2xl border border-border bg-card p-4">
+      <div className="flex items-center justify-between">
+        <div className="font-serif text-base">Minhas fichas offline</div>
+        <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{list.length} ficha{list.length === 1 ? "" : "s"}</span>
+      </div>
+      <ul className="mt-2 divide-y divide-border">
+        {list.map((w) => (
+          <li key={w.code} className="flex items-center gap-3 py-2.5">
+            <span className="grid h-10 w-10 place-items-center rounded-xl bg-foreground text-background"><WifiOff className="h-4 w-4" /></span>
+            <div className="min-w-0 flex-1">
+              <div className="font-mono text-xs tracking-wider">{w.code}</div>
+              <div className="text-[10px] text-muted-foreground">
+                R$ {w.balance} de R$ {w.balance + w.consumed} · {new Date(w.issuedAt).toLocaleDateString("pt-BR")}
+                {w.passphrase && " · 🔒"}
+              </div>
+            </div>
+            <button
+              onClick={() => setShowQr(w)}
+              className="rounded-full border border-border px-3 py-1 text-[11px] font-semibold"
+            >Ver QR</button>
+          </li>
+        ))}
+      </ul>
+
+      <AnimatePresence>
+        {showQr && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 grid place-items-center bg-foreground/60 p-4"
+            onClick={() => setShowQr(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.9 }} animate={{ scale: 1 }} exit={{ scale: 0.9 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-xs rounded-3xl border-2 border-foreground bg-card p-5 text-center shadow-pop"
+            >
+              <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Mostre na barraca</div>
+              <div className="font-mono text-sm tracking-[0.25em]">{showQr.code}</div>
+              <div className="mx-auto mt-3 grid place-items-center rounded-2xl bg-background p-3">
+                <QRCodeSVG value={`festacash://wallet/${showQr.code}`} size={200} bgColor="transparent" fgColor="oklch(0.22 0.06 35)" level="H" />
+              </div>
+              <div className="mt-3 font-display text-3xl text-primary">R$ {showQr.balance}</div>
+              {showQr.passphrase && <div className="mt-1 text-[11px] text-warning">🔒 Tem palavra-chave combinada</div>}
+              <button onClick={() => setShowQr(null)} className="mt-4 w-full rounded-full bg-foreground py-2.5 text-sm font-semibold text-background">Fechar</button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

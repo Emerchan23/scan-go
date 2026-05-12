@@ -214,48 +214,63 @@ function BarracaApp() {
         <div className="px-5">
           <AnimatePresence mode="wait">
             {!scanned ? (
-              <motion.button
+              <motion.div
                 key="scan-cta"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                onClick={startScan}
-                className="relative grid w-full place-items-center overflow-hidden rounded-3xl border-2 border-foreground bg-foreground text-background py-10 active:scale-[0.99] transition"
+                className="space-y-2"
               >
-                <div className="grid h-16 w-16 place-items-center rounded-2xl bg-background/10 backdrop-blur">
-                  <ScanLine className="h-8 w-8" />
-                </div>
-                <div className="mt-3 font-serif text-xl">Escanear cliente</div>
-                <div className="text-xs opacity-70">Aponte para o QR Code do app ou da fichinha</div>
-                {scanning && (
-                  <motion.div
-                    initial={{ y: -120 }}
-                    animate={{ y: 120 }}
-                    transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
-                    className="pointer-events-none absolute left-0 right-0 h-1 bg-primary shadow-[0_0_20px_oklch(0.62_0.21_35)]"
-                  />
-                )}
-              </motion.button>
+                <button
+                  onClick={startScan}
+                  className="relative grid w-full place-items-center overflow-hidden rounded-3xl border-2 border-foreground bg-foreground text-background py-10 active:scale-[0.99] transition"
+                >
+                  <div className="grid h-16 w-16 place-items-center rounded-2xl bg-background/10 backdrop-blur">
+                    <ScanLine className="h-8 w-8" />
+                  </div>
+                  <div className="mt-3 font-serif text-xl">Escanear cliente</div>
+                  <div className="text-xs opacity-70">QR do app · sem palavra-chave</div>
+                  {scanning && (
+                    <motion.div
+                      initial={{ y: -120 }}
+                      animate={{ y: 120 }}
+                      transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
+                      className="pointer-events-none absolute left-0 right-0 h-1 bg-primary shadow-[0_0_20px_oklch(0.62_0.21_35)]"
+                    />
+                  )}
+                </button>
+                <button
+                  onClick={() => setShowFichaModal(true)}
+                  className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-foreground/40 bg-card py-3 text-sm font-semibold active:scale-[0.99] transition"
+                >
+                  🎟️ Cobrar fichinha do caixa <span className="text-muted-foreground font-normal">(offline)</span>
+                </button>
+              </motion.div>
             ) : (
               <motion.div
                 key="customer"
                 initial={{ y: 12, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
-                className="flex items-center justify-between rounded-2xl border-2 border-foreground bg-card p-4 shadow-pop"
+                className={`flex items-center justify-between rounded-2xl border-2 ${ficha ? "border-warning bg-warning/5" : "border-foreground bg-card"} p-4 shadow-pop`}
               >
                 <div className="flex items-center gap-3">
                   <div className="grid h-12 w-12 place-items-center rounded-full bg-primary text-primary-foreground font-display text-xl">
-                    {(s.user.name === "Visitante" ? "C" : s.user.name)[0]?.toUpperCase()}
+                    {ficha ? "🎟️" : (s.user.name === "Visitante" ? "C" : s.user.name)[0]?.toUpperCase()}
                   </div>
                   <div>
-                    <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Cliente</div>
-                    <div className="font-serif text-lg leading-tight">{s.user.name === "Visitante" ? "Convidado" : s.user.name}</div>
-                    <div className="text-[11px] text-muted-foreground">#{s.user.id.slice(-4)}</div>
+                    <div className="text-[10px] uppercase tracking-widest text-muted-foreground">{ficha ? "Fichinha · offline" : "Cliente"}</div>
+                    <div className="font-serif text-lg leading-tight">
+                      {ficha ? (ficha.wallet.holder ?? "Anônima") : (s.user.name === "Visitante" ? "Convidado" : s.user.name)}
+                    </div>
+                    <div className="text-[11px] text-muted-foreground font-mono">
+                      {ficha ? ficha.wallet.code : `#${s.user.id.slice(-4)}`}
+                      {ficha && <span className="ml-1 text-success">· 🔒 validada</span>}
+                    </div>
                   </div>
                 </div>
                 <div className="text-right">
                   <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Saldo</div>
-                  <div className="font-display text-2xl text-primary tabular-nums">R${s.user.balance}</div>
+                  <div className="font-display text-2xl text-primary tabular-nums">R${ficha ? ficha.wallet.balance : s.user.balance}</div>
                 </div>
               </motion.div>
             )}

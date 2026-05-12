@@ -737,11 +737,11 @@ function BuyView({ onDone }: { onDone: (m: string) => void }) {
       </div>
 
       <button
-        disabled={!name.trim() || loading || s.split.status !== "connected"}
+        disabled={!name.trim() || loading || s.split.status !== "connected" || s.salesStatus.topUps === "closed"}
         onClick={buy}
         className="mt-4 w-full rounded-full bg-primary py-3.5 font-semibold text-primary-foreground shadow-pop active:scale-[0.98] transition disabled:opacity-50"
       >
-        {loading ? "Processando..." : s.split.status !== "connected" ? "Organizador não conectou conta" : `Pagar R$ ${amount},00`}
+        {loading ? "Processando..." : s.salesStatus.topUps === "closed" ? "Recargas encerradas" : s.split.status !== "connected" ? "Organizador não conectou conta" : `Pagar R$ ${amount},00`}
       </button>
       <p className="mt-2 text-center text-[11px] text-muted-foreground">Pagamento seguro · split automático Mercado Pago</p>
     </div>

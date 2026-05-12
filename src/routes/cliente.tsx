@@ -114,6 +114,7 @@ function HomeView({ onTab, onTransfer, onToast }: { onTab: (t: Tab) => void; onT
     <div>
       <WalletCard />
 
+      <SalesStatusBanner />
       <PolicyBanner onAction={onToast} />
 
       {/* Quick actions */}

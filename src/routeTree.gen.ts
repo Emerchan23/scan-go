@@ -9,11 +9,17 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as OwnerRouteImport } from './routes/owner'
 import { Route as ClienteRouteImport } from './routes/cliente'
 import { Route as BarracaRouteImport } from './routes/barraca'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 
+const OwnerRoute = OwnerRouteImport.update({
+  id: '/owner',
+  path: '/owner',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ClienteRoute = ClienteRouteImport.update({
   id: '/cliente',
   path: '/cliente',
@@ -40,12 +46,14 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRoute
   '/barraca': typeof BarracaRoute
   '/cliente': typeof ClienteRoute
+  '/owner': typeof OwnerRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/barraca': typeof BarracaRoute
   '/cliente': typeof ClienteRoute
+  '/owner': typeof OwnerRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -53,13 +61,14 @@ export interface FileRoutesById {
   '/admin': typeof AdminRoute
   '/barraca': typeof BarracaRoute
   '/cliente': typeof ClienteRoute
+  '/owner': typeof OwnerRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/admin' | '/barraca' | '/cliente'
+  fullPaths: '/' | '/admin' | '/barraca' | '/cliente' | '/owner'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/admin' | '/barraca' | '/cliente'
-  id: '__root__' | '/' | '/admin' | '/barraca' | '/cliente'
+  to: '/' | '/admin' | '/barraca' | '/cliente' | '/owner'
+  id: '__root__' | '/' | '/admin' | '/barraca' | '/cliente' | '/owner'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -67,10 +76,18 @@ export interface RootRouteChildren {
   AdminRoute: typeof AdminRoute
   BarracaRoute: typeof BarracaRoute
   ClienteRoute: typeof ClienteRoute
+  OwnerRoute: typeof OwnerRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/owner': {
+      id: '/owner'
+      path: '/owner'
+      fullPath: '/owner'
+      preLoaderRoute: typeof OwnerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/cliente': {
       id: '/cliente'
       path: '/cliente'
@@ -107,7 +124,18 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRoute: AdminRoute,
   BarracaRoute: BarracaRoute,
   ClienteRoute: ClienteRoute,
+  OwnerRoute: OwnerRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

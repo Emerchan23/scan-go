@@ -464,5 +464,3 @@ function fmtTime(ts: number) {
   return new Date(ts).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 }
 
-// keep bunting import side-effect-free
-void Bunting;

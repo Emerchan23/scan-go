@@ -81,7 +81,7 @@ function CaixaPage() {
             event={s.event}
             operator={operator}
             method={method}
-            onClose={() => { setIssued(null); setHolder(""); setAmount(50); }}
+            onClose={() => { setIssued(null); setHolder(""); setAmount(50); setPassphrase(""); setIssueError(null); }}
             onPrint={printNow}
           />
         )}

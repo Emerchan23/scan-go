@@ -22,14 +22,8 @@ type Tab = "home" | "catalogo" | "comprar" | "qr" | "historico";
 function ClientApp() {
   const s = useStore();
   const [tab, setTab] = useState<Tab>("home");
-  const [now, setNow] = useState(() => new Date());
   const [toast, setToast] = useState<string | null>(null);
   const [transferOpen, setTransferOpen] = useState(false);
-
-  useEffect(() => {
-    const t = setInterval(() => setNow(new Date()), 30_000);
-    return () => clearInterval(t);
-  }, []);
 
   useEffect(() => {
     if (!toast) return;

@@ -1,10 +1,10 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
-import { Banknote, Printer, ScanLine, X } from "lucide-react";
+import { Banknote, Printer, ScanLine, X, Search, Undo2, ShieldAlert } from "lucide-react";
 import { SiteHeader } from "@/components/site-header";
 import { Bunting } from "@/components/bunting";
-import { issueWallet, useStore, type Wallet } from "@/lib/festa-store";
+import { createRefundRequest, executeRefund, issueWallet, searchSales, useStore, type Sale, type Wallet } from "@/lib/festa-store";
 
 export const Route = createFileRoute("/caixa")({
   head: () => ({

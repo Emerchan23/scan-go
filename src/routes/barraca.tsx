@@ -3,7 +3,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Check, ChevronLeft, Minus, Plus, ScanLine, Search, Trash2, X } from "lucide-react";
 import { InstallPrompt } from "@/components/install-prompt";
-import { chargeProduct, useStore, type Product } from "@/lib/festa-store";
+import { chargeProduct, useStore, type Barraca, type Product } from "@/lib/festa-store";
+
+const BARRACA_KEY = "festacash:current-barraca";
 
 export const Route = createFileRoute("/barraca")({
   head: () => ({

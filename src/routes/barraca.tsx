@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Battery, Check, ChevronLeft, Minus, Plus, ScanLine, Search, Signal, Trash2, Wifi, X } from "lucide-react";
+import { Check, ChevronLeft, Minus, Plus, ScanLine, Search, Trash2, X } from "lucide-react";
+import { InstallPrompt } from "@/components/install-prompt";
 import { chargeProduct, useStore, type Product } from "@/lib/festa-store";
 
 export const Route = createFileRoute("/barraca")({
@@ -18,7 +19,7 @@ type CartItem = { product: Product; qty: number };
 
 function BarracaApp() {
   const s = useStore();
-  const [now, setNow] = useState(() => new Date());
+  // (status bar removido — UX nativa de PWA)
   const [scanned, setScanned] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [filter, setFilter] = useState("Todos");
@@ -41,10 +42,8 @@ function BarracaApp() {
   const total = cart.reduce((a, c) => a + c.product.price * c.qty, 0);
   const totalQty = cart.reduce((a, c) => a + c.qty, 0);
 
-  useEffect(() => {
-    const t = setInterval(() => setNow(new Date()), 30_000);
-    return () => clearInterval(t);
-  }, []);
+
+
 
   useEffect(() => {
     if (!error) return;
@@ -109,13 +108,11 @@ function BarracaApp() {
   };
 
   return (
-    <div className="min-h-[100svh] bg-foreground/5">
-      <div className="mx-auto flex min-h-[100svh] w-full max-w-md flex-col bg-background shadow-pop md:my-6 md:min-h-[860px] md:rounded-[44px] md:overflow-hidden md:ring-8 md:ring-foreground/90">
-        {/* Status bar */}
-        <div className="flex items-center justify-between px-6 pt-3 text-[11px] font-semibold text-foreground/80">
-          <span className="tabular-nums">{now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</span>
-          <div className="flex items-center gap-1.5"><Signal className="h-3.5 w-3.5" /><Wifi className="h-3.5 w-3.5" /><Battery className="h-4 w-4" /></div>
-        </div>
+    <div className="min-h-[100svh] bg-background">
+      <div
+        className="relative mx-auto flex min-h-[100svh] w-full max-w-md flex-col bg-background"
+        style={{ paddingTop: "env(safe-area-inset-top)" }}
+      >
 
         {/* Top bar */}
         <header className="flex items-center justify-between px-5 pt-2 pb-3">
@@ -286,6 +283,7 @@ function BarracaApp() {
           )}
         </AnimatePresence>
       </div>
+      <InstallPrompt appName="FestaCash PDV" />
     </div>
   );
 }

@@ -2,9 +2,10 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { QRCodeSVG } from "qrcode.react";
-import { AlertTriangle, Battery, Bell, ChevronRight, Clock, History, Home, Info, Plus, QrCode as QrIcon, Search, Send, ShoppingBag, Signal, Wifi } from "lucide-react";
+import { AlertTriangle, Bell, ChevronRight, Clock, History, Home, Info, Plus, QrCode as QrIcon, Search, Send, ShoppingBag } from "lucide-react";
 
 import { addCredits, requestRefund, transfer, useStore, type Product, type ProductKind } from "@/lib/festa-store";
+import { InstallPrompt } from "@/components/install-prompt";
 
 export const Route = createFileRoute("/cliente")({
   head: () => ({
@@ -21,14 +22,8 @@ type Tab = "home" | "catalogo" | "comprar" | "qr" | "historico";
 function ClientApp() {
   const s = useStore();
   const [tab, setTab] = useState<Tab>("home");
-  const [now, setNow] = useState(() => new Date());
   const [toast, setToast] = useState<string | null>(null);
   const [transferOpen, setTransferOpen] = useState(false);
-
-  useEffect(() => {
-    const t = setInterval(() => setNow(new Date()), 30_000);
-    return () => clearInterval(t);
-  }, []);
 
   useEffect(() => {
     if (!toast) return;
@@ -37,9 +32,11 @@ function ClientApp() {
   }, [toast]);
 
   return (
-    <div className="min-h-[100svh] bg-foreground/5">
-      <div className="mx-auto flex min-h-[100svh] w-full max-w-md flex-col bg-background shadow-pop md:my-6 md:min-h-[860px] md:rounded-[44px] md:overflow-hidden md:ring-8 md:ring-foreground/90">
-        <StatusBar now={now} />
+    <div className="min-h-[100svh] bg-background">
+      <div
+        className="relative mx-auto flex min-h-[100svh] w-full max-w-md flex-col bg-background"
+        style={{ paddingTop: "env(safe-area-inset-top)" }}
+      >
 
         {/* Header */}
         <div className="relative flex items-center justify-between px-5 pt-2 pb-3">
@@ -100,22 +97,7 @@ function ClientApp() {
         {/* Bottom tab bar */}
         <BottomBar tab={tab} onTab={setTab} />
       </div>
-    </div>
-  );
-}
-
-/* ----------------------------- Status bar ----------------------------- */
-
-function StatusBar({ now }: { now: Date }) {
-  const t = now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-  return (
-    <div className="flex items-center justify-between px-6 pt-3 text-[11px] font-semibold text-foreground/80">
-      <span className="tabular-nums">{t}</span>
-      <div className="flex items-center gap-1.5">
-        <Signal className="h-3.5 w-3.5" />
-        <Wifi className="h-3.5 w-3.5" />
-        <Battery className="h-4 w-4" />
-      </div>
+      <InstallPrompt />
     </div>
   );
 }

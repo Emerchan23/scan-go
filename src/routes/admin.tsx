@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useRef, useState } from "react";
 import { SiteHeader } from "@/components/site-header";
 import { Bunting } from "@/components/bunting";
-import { connectSplit, disconnectSplit, removeProduct, reset, setPolicy, upsertProduct, useStore, type Product, type ProductKind } from "@/lib/festa-store";
+import { connectSplit, disconnectSplit, removeBarraca, removeProduct, reset, setPolicy, toggleBarracaProduct, upsertBarraca, upsertProduct, useStore, type Barraca, type Product, type ProductKind } from "@/lib/festa-store";
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 export const Route = createFileRoute("/admin")({
@@ -187,6 +187,8 @@ function AdminPage() {
           <PolicyCard />
         </div>
         <PolicyExplainer />
+
+        <BarracasManager />
 
         {/* Folders / QR para imprimir */}
         <a
@@ -603,6 +605,183 @@ function SplitCard() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/* ------------------------------ Barracas ------------------------------ */
+
+function BarracasManager() {
+  const s = useStore();
+  const [editing, setEditing] = useState<Barraca | null>(null);
+
+  const blank = (): Barraca => ({
+    id: "bar_" + Math.random().toString(36).slice(2, 8),
+    name: "",
+    emoji: "🎪",
+    attendant: "",
+    productIds: [],
+  });
+
+  return (
+    <section className="mt-8 rounded-3xl border border-border bg-card p-5 shadow-soft">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="font-serif text-2xl">Barracas do evento</h2>
+          <p className="text-sm text-muted-foreground">
+            Defina o que cada barraca pode vender. O atendente só verá os
+            produtos liberados pra ele no PDV.
+          </p>
+        </div>
+        <button
+          onClick={() => setEditing(blank())}
+          className="rounded-full bg-foreground px-4 py-2 text-xs font-semibold text-background"
+        >
+          + Nova barraca
+        </button>
+      </div>
+
+      <div className="mt-5 grid gap-3 md:grid-cols-2">
+        {s.barracas.map((b) => (
+          <article key={b.id} className="rounded-2xl border border-border bg-background p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-secondary text-2xl">{b.emoji}</span>
+                <div className="min-w-0">
+                  <div className="font-serif text-lg leading-tight truncate">{b.name || "(sem nome)"}</div>
+                  <div className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                    {b.attendant ? `Atendente: ${b.attendant}` : "Sem atendente"} · {b.productIds.length} {b.productIds.length === 1 ? "item" : "itens"}
+                  </div>
+                </div>
+              </div>
+              <div className="flex shrink-0 gap-1.5">
+                <button onClick={() => setEditing(b)} className="rounded-full border border-border px-3 py-1 text-[11px] font-semibold">Editar</button>
+                <button onClick={() => { if (confirm(`Remover barraca "${b.name}"?`)) removeBarraca(b.id); }} className="rounded-full border border-destructive/40 px-3 py-1 text-[11px] font-semibold text-destructive">Remover</button>
+              </div>
+            </div>
+
+            {b.productIds.length > 0 && (
+              <ul className="mt-3 flex flex-wrap gap-1.5">
+                {b.productIds.map((pid) => {
+                  const p = s.products.find((x) => x.id === pid);
+                  if (!p) return null;
+                  return (
+                    <li key={pid} className="rounded-full bg-secondary px-2.5 py-1 text-[11px] font-medium">
+                      {p.emoji} {p.name} · R${p.price}
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </article>
+        ))}
+      </div>
+
+      {editing && (
+        <BarracaDialog
+          barraca={editing}
+          products={s.products}
+          onClose={() => setEditing(null)}
+          onSave={(b) => { upsertBarraca(b); setEditing(null); }}
+        />
+      )}
+    </section>
+  );
+}
+
+function BarracaDialog({
+  barraca,
+  products,
+  onClose,
+  onSave,
+}: {
+  barraca: Barraca;
+  products: Product[];
+  onClose: () => void;
+  onSave: (b: Barraca) => void;
+}) {
+  const [b, setB] = useState<Barraca>(barraca);
+  const upd = <K extends keyof Barraca>(k: K, v: Barraca[K]) => setB((p) => ({ ...p, [k]: v }));
+  const toggle = (pid: string) => {
+    const has = b.productIds.includes(pid);
+    upd("productIds", has ? b.productIds.filter((x) => x !== pid) : [...b.productIds, pid]);
+  };
+
+  // Live preview também atualiza store, pra refletir no PDV em tempo real:
+  const persistToggle = (pid: string, on: boolean) => {
+    toggle(pid);
+    if (b.id) toggleBarracaProduct(b.id, pid, on);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-foreground/40 p-4" onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-2xl rounded-3xl border-2 border-foreground bg-card p-6 shadow-pop max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between">
+          <h3 className="font-serif text-2xl">Barraca</h3>
+          <button onClick={onClose} className="rounded-full bg-secondary px-3 py-1 text-xs font-semibold">Fechar</button>
+        </div>
+
+        <div className="mt-5 grid gap-3 sm:grid-cols-3">
+          <Field label="Emoji">
+            <input value={b.emoji} onChange={(e) => upd("emoji", e.target.value)} maxLength={4} className="input text-center text-2xl" />
+          </Field>
+          <Field label="Nome" full>
+            <input value={b.name} onChange={(e) => upd("name", e.target.value)} className="input" placeholder="Ex.: Pastelaria" />
+          </Field>
+          <Field label="Atendente" full>
+            <input value={b.attendant ?? ""} onChange={(e) => upd("attendant", e.target.value)} className="input" placeholder="Ex.: Dona Lu" />
+          </Field>
+        </div>
+
+        <div className="mt-5">
+          <div className="flex items-center justify-between">
+            <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Produtos liberados ({b.productIds.length}/{products.length})
+            </div>
+            <button
+              onClick={() => upd("productIds", b.productIds.length === products.length ? [] : products.map((p) => p.id))}
+              className="text-[11px] font-semibold text-primary"
+            >
+              {b.productIds.length === products.length ? "Limpar" : "Marcar todos"}
+            </button>
+          </div>
+          <ul className="mt-2 grid gap-1.5 sm:grid-cols-2">
+            {products.map((p) => {
+              const checked = b.productIds.includes(p.id);
+              return (
+                <li key={p.id}>
+                  <label className={`flex items-center gap-3 rounded-xl border p-2.5 cursor-pointer transition ${checked ? "border-foreground bg-accent/40" : "border-border bg-background"}`}>
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={(e) => persistToggle(p.id, e.target.checked)}
+                      className="h-4 w-4 accent-foreground"
+                    />
+                    <span className="text-xl">{p.emoji}</span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-semibold">{p.name}</span>
+                      <span className="block text-[11px] text-muted-foreground">{p.barraca} · R${p.price}</span>
+                    </span>
+                  </label>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+
+        <div className="mt-6 flex justify-end gap-2">
+          <button onClick={onClose} className="rounded-full border border-border px-4 py-2 text-sm font-semibold">Cancelar</button>
+          <button
+            disabled={!b.name.trim()}
+            onClick={() => onSave(b)}
+            className="rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground shadow-pop disabled:opacity-50"
+          >
+            Salvar barraca
+          </button>
+        </div>
+
+        <style>{`.input{width:100%;border-radius:0.75rem;border:1px solid var(--border);background:var(--background);padding:0.6rem 0.85rem;font-size:0.875rem;outline:none}.input:focus{box-shadow:0 0 0 2px var(--ring)}`}</style>
+      </div>
     </div>
   );
 }

@@ -13,6 +13,7 @@ import { Route as OwnerRouteImport } from './routes/owner'
 import { Route as FolderRouteImport } from './routes/folder'
 import { Route as ClienteRouteImport } from './routes/cliente'
 import { Route as CatalogoRouteImport } from './routes/catalogo'
+import { Route as CaixaRouteImport } from './routes/caixa'
 import { Route as BarracaRouteImport } from './routes/barraca'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
@@ -37,6 +38,11 @@ const CatalogoRoute = CatalogoRouteImport.update({
   path: '/catalogo',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CaixaRoute = CaixaRouteImport.update({
+  id: '/caixa',
+  path: '/caixa',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const BarracaRoute = BarracaRouteImport.update({
   id: '/barraca',
   path: '/barraca',
@@ -57,6 +63,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/barraca': typeof BarracaRoute
+  '/caixa': typeof CaixaRoute
   '/catalogo': typeof CatalogoRoute
   '/cliente': typeof ClienteRoute
   '/folder': typeof FolderRoute
@@ -66,6 +73,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/barraca': typeof BarracaRoute
+  '/caixa': typeof CaixaRoute
   '/catalogo': typeof CatalogoRoute
   '/cliente': typeof ClienteRoute
   '/folder': typeof FolderRoute
@@ -76,6 +84,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/barraca': typeof BarracaRoute
+  '/caixa': typeof CaixaRoute
   '/catalogo': typeof CatalogoRoute
   '/cliente': typeof ClienteRoute
   '/folder': typeof FolderRoute
@@ -87,6 +96,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/barraca'
+    | '/caixa'
     | '/catalogo'
     | '/cliente'
     | '/folder'
@@ -96,6 +106,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/barraca'
+    | '/caixa'
     | '/catalogo'
     | '/cliente'
     | '/folder'
@@ -105,6 +116,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/barraca'
+    | '/caixa'
     | '/catalogo'
     | '/cliente'
     | '/folder'
@@ -115,6 +127,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRoute
   BarracaRoute: typeof BarracaRoute
+  CaixaRoute: typeof CaixaRoute
   CatalogoRoute: typeof CatalogoRoute
   ClienteRoute: typeof ClienteRoute
   FolderRoute: typeof FolderRoute
@@ -151,6 +164,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CatalogoRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/caixa': {
+      id: '/caixa'
+      path: '/caixa'
+      fullPath: '/caixa'
+      preLoaderRoute: typeof CaixaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/barraca': {
       id: '/barraca'
       path: '/barraca'
@@ -179,6 +199,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRoute,
   BarracaRoute: BarracaRoute,
+  CaixaRoute: CaixaRoute,
   CatalogoRoute: CatalogoRoute,
   ClienteRoute: ClienteRoute,
   FolderRoute: FolderRoute,

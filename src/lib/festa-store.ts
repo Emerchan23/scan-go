@@ -8,22 +8,42 @@ export type Product = {
   name: string;
   price: number;
   emoji: string;
+  /** Nome legado / fallback de barraca (compat com seeds antigos). */
   barraca: string;
   kind: ProductKind;
-  /** Foto do produto (URL ou data:URL salvo do upload). */
   image?: string;
-  /** Descrição curta para o catálogo. */
   description?: string;
-  /** Tempo de uso em minutos — usado em brinquedos / ingressos. */
   durationMin?: number;
-  /** Estoque (opcional). */
   stock?: number;
+};
+
+/** Barraca cadastrada pelo organizador. */
+export type Barraca = {
+  id: string;
+  name: string;
+  emoji: string;
+  attendant?: string;
+  /** Produtos liberados pra venda nesta barraca (N:N). */
+  productIds: string[];
+};
+
+/** Ficha offline emitida pelo Caixa — carteira com saldo e QR próprio. */
+export type Wallet = {
+  /** Código curto pra impressão (ex.: F-7K9XA2). */
+  code: string;
+  /** Nome do portador (opcional — pulseira pode ser anônima). */
+  holder?: string;
+  balance: number;
+  issuedAt: number;
+  issuedBy: string;
+  /** Histórico de débitos no PDV. */
+  consumed: number;
 };
 
 export type Sale = { id: string; productId: string; product: string; price: number; barraca: string; at: number; user: string };
 export type User = { id: string; name: string; balance: number };
 
-const KEY = "festacash:v3";
+const KEY = "festacash:v4";
 
 /** O que acontece com o saldo não usado quando o evento acaba. */
 export type CreditPolicy = {
@@ -58,15 +78,17 @@ export type SplitAccount = {
 type State = {
   user: User;
   products: Product[];
+  barracas: Barraca[];
+  wallets: Wallet[];
   sales: Sale[];
   event: { name: string; date: string; org: string };
-  /** Taxa da plataforma (split). 0.02 = 2%. Configurada pelo dono do SaaS. */
   platformFee: number;
-  /** Política de saldo não consumido. Configurada pelo organizador. */
   policy: CreditPolicy;
-  /** Conta do organizador no Mercado Pago (split). */
   split: SplitAccount;
 };
+
+const KEY_BUMP = "v4";
+void KEY_BUMP;
 
 const initial: State = {
   user: { id: "u_1932", name: "Visitante", balance: 0 },
@@ -75,7 +97,7 @@ const initial: State = {
   policy: {
     mode: "refund",
     refundDays: 7,
-    endsAt: Date.now() + 8 * 60 * 60 * 1000, // termina em ~8h pra demo mostrar contagem
+    endsAt: Date.now() + 8 * 60 * 60 * 1000,
   },
   split: {
     status: "connected",
@@ -94,12 +116,21 @@ const initial: State = {
     { id: "p6", name: "Milho cozido", price: 6, emoji: "🌽", barraca: "Milho", kind: "comida" },
     { id: "p7", name: "Canjica", price: 9, emoji: "🥣", barraca: "Doces", kind: "doce" },
     { id: "p8", name: "Cachorro-quente", price: 14, emoji: "🌭", barraca: "Lanches", kind: "comida" },
-    // Brinquedos / ingressos
     { id: "b1", name: "Cama elástica", price: 15, emoji: "🤸", barraca: "Brinquedos", kind: "brinquedo", durationMin: 10, description: "10 minutos de pulo livre na cama elástica gigante." },
     { id: "b2", name: "Touro mecânico", price: 20, emoji: "🐂", barraca: "Brinquedos", kind: "brinquedo", durationMin: 5, description: "5 minutos no touro — quem aguenta?" },
     { id: "b3", name: "Pintura facial", price: 10, emoji: "🎨", barraca: "Brinquedos", kind: "ingresso", description: "Uma sessão de pintura facial temática." },
     { id: "b4", name: "Pula-pula infantil", price: 12, emoji: "🎈", barraca: "Brinquedos", kind: "brinquedo", durationMin: 15, description: "15 minutos no castelo inflável (até 8 anos)." },
   ],
+  barracas: [
+    { id: "bar_churras",  name: "Churrasquinho", emoji: "🍢", attendant: "Seu Zé",   productIds: ["p1", "p5"] },
+    { id: "bar_pastel",   name: "Pastelaria",    emoji: "🥟", attendant: "Dona Lu",  productIds: ["p2", "p5"] },
+    { id: "bar_doces",    name: "Doces",         emoji: "🍬", attendant: "Marina",   productIds: ["p3", "p7"] },
+    { id: "bar_bebidas",  name: "Bebidas",       emoji: "🥤", attendant: "Carlos",   productIds: ["p4", "p5"] },
+    { id: "bar_milho",    name: "Milho",         emoji: "🌽", attendant: "Ana",      productIds: ["p6"] },
+    { id: "bar_lanches",  name: "Lanches",       emoji: "🌭", attendant: "João",     productIds: ["p8", "p5"] },
+    { id: "bar_brinq",    name: "Brinquedos",    emoji: "🎈", attendant: "Equipe",   productIds: ["b1", "b2", "b3", "b4"] },
+  ],
+  wallets: [],
   sales: [],
 };
 
@@ -136,12 +167,32 @@ export function transfer(amount: number) {
   write(s);
 }
 
-export function chargeProduct(productId: string) {
+/**
+ * Cobra um produto. Se `walletCode` for informado, debita da ficha emitida
+ * pelo Caixa; caso contrário, da carteira do cliente logado.
+ */
+export function chargeProduct(productId: string, walletCode?: string) {
   const s = read();
   const p = s.products.find((x) => x.id === productId);
   if (!p) throw new Error("Produto não encontrado");
-  if (s.user.balance < p.price) throw new Error("Saldo insuficiente");
-  s.user.balance -= p.price;
+
+  let payerName = s.user.name;
+  let newBalance: number;
+
+  if (walletCode) {
+    const w = s.wallets.find((x) => x.code === walletCode);
+    if (!w) throw new Error("Ficha não encontrada");
+    if (w.balance < p.price) throw new Error("Saldo da ficha insuficiente");
+    w.balance -= p.price;
+    w.consumed += p.price;
+    payerName = w.holder || `Ficha ${w.code}`;
+    newBalance = w.balance;
+  } else {
+    if (s.user.balance < p.price) throw new Error("Saldo insuficiente");
+    s.user.balance -= p.price;
+    newBalance = s.user.balance;
+  }
+
   s.sales.unshift({
     id: "s_" + Math.random().toString(36).slice(2, 9),
     productId: p.id,
@@ -149,10 +200,75 @@ export function chargeProduct(productId: string) {
     price: p.price,
     barraca: p.barraca,
     at: Date.now(),
-    user: s.user.name,
+    user: payerName,
   });
   write(s);
-  return { product: p, balance: s.user.balance };
+  return { product: p, balance: newBalance };
+}
+
+/* ---------------------- Barracas (CRUD + atribuição) -------------------- */
+
+export function upsertBarraca(b: Barraca) {
+  const s = read();
+  const i = s.barracas.findIndex((x) => x.id === b.id);
+  if (i >= 0) s.barracas[i] = b; else s.barracas.unshift(b);
+  write(s);
+}
+
+export function removeBarraca(id: string) {
+  const s = read();
+  s.barracas = s.barracas.filter((b) => b.id !== id);
+  write(s);
+}
+
+export function toggleBarracaProduct(barracaId: string, productId: string, on: boolean) {
+  const s = read();
+  const b = s.barracas.find((x) => x.id === barracaId);
+  if (!b) return;
+  const has = b.productIds.includes(productId);
+  if (on && !has) b.productIds.push(productId);
+  if (!on && has) b.productIds = b.productIds.filter((p) => p !== productId);
+  write(s);
+}
+
+/** Produtos liberados pra venda numa barraca específica. */
+export function productsForBarraca(barracaId: string): Product[] {
+  const s = read();
+  const b = s.barracas.find((x) => x.id === barracaId);
+  if (!b) return [];
+  return s.products.filter((p) => b.productIds.includes(p.id));
+}
+
+/* ----------------------------- Carteiras / Caixa ------------------------ */
+
+function genWalletCode() {
+  const c = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let r = "F-";
+  for (let i = 0; i < 6; i++) r += c[Math.floor(Math.random() * c.length)];
+  return r;
+}
+
+/** Caixa emite uma ficha (carteira offline) com saldo. Devolve a ficha. */
+export function issueWallet(opts: { holder?: string; amount: number; issuedBy: string }): Wallet {
+  if (opts.amount <= 0) throw new Error("Valor inválido");
+  const s = read();
+  let code = genWalletCode();
+  while (s.wallets.find((w) => w.code === code)) code = genWalletCode();
+  const w: Wallet = {
+    code,
+    holder: opts.holder?.trim() || undefined,
+    balance: opts.amount,
+    issuedAt: Date.now(),
+    issuedBy: opts.issuedBy,
+    consumed: 0,
+  };
+  s.wallets.unshift(w);
+  write(s);
+  return w;
+}
+
+export function findWallet(code: string): Wallet | undefined {
+  return read().wallets.find((w) => w.code.toUpperCase() === code.toUpperCase());
 }
 
 export function setPlatformFee(fee: number) {

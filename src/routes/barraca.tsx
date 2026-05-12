@@ -3,7 +3,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Check, ChevronLeft, Minus, Plus, ScanLine, Search, Trash2, X } from "lucide-react";
 import { InstallPrompt } from "@/components/install-prompt";
-import { chargeProduct, useStore, type Product } from "@/lib/festa-store";
+import { chargeProduct, useStore, type Barraca, type Product } from "@/lib/festa-store";
+
+const BARRACA_KEY = "festacash:current-barraca";
 
 export const Route = createFileRoute("/barraca")({
   head: () => ({
@@ -19,25 +21,45 @@ type CartItem = { product: Product; qty: number };
 
 function BarracaApp() {
   const s = useStore();
-  // (status bar removido — UX nativa de PWA)
+  const [currentId, setCurrentId] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    return localStorage.getItem(BARRACA_KEY);
+  });
+
+  const current = useMemo<Barraca | null>(
+    () => s.barracas.find((b) => b.id === currentId) ?? null,
+    [s.barracas, currentId],
+  );
+
+  const pickBarraca = (id: string) => {
+    setCurrentId(id);
+    if (typeof window !== "undefined") localStorage.setItem(BARRACA_KEY, id);
+  };
+  const switchBarraca = () => {
+    setCurrentId(null);
+    if (typeof window !== "undefined") localStorage.removeItem(BARRACA_KEY);
+  };
+
   const [scanned, setScanned] = useState(false);
   const [scanning, setScanning] = useState(false);
-  const [filter, setFilter] = useState("Todos");
   const [q, setQ] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [success, setSuccess] = useState<{ total: number; balance: number; items: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const barracas = useMemo(() => ["Todos", ...Array.from(new Set(s.products.map((p) => p.barraca)))], [s.products]);
+  // Produtos liberados pra esta barraca (N:N).
+  const allowed = useMemo(() => {
+    if (!current) return [] as Product[];
+    return s.products.filter((p) => current.productIds.includes(p.id));
+  }, [s.products, current]);
 
   const list = useMemo(() => {
     const term = q.trim().toLowerCase();
-    return s.products.filter((p) => {
-      if (filter !== "Todos" && p.barraca !== filter) return false;
+    return allowed.filter((p) => {
       if (term && !p.name.toLowerCase().includes(term)) return false;
       return true;
     });
-  }, [s.products, filter, q]);
+  }, [allowed, q]);
 
   const total = cart.reduce((a, c) => a + c.product.price * c.qty, 0);
   const totalQty = cart.reduce((a, c) => a + c.qty, 0);
@@ -107,6 +129,49 @@ function BarracaApp() {
     }
   };
 
+  // Tela inicial: escolher qual barraca eu sou.
+  if (!current) {
+    return (
+      <div className="min-h-[100svh] bg-background">
+        <div
+          className="relative mx-auto flex min-h-[100svh] w-full max-w-md flex-col bg-background"
+          style={{ paddingTop: "env(safe-area-inset-top)" }}
+        >
+          <header className="px-5 pt-4 pb-2">
+            <div className="text-[10px] uppercase tracking-widest text-muted-foreground">PDV · {s.event.name}</div>
+            <h1 className="font-serif text-2xl">Em qual barraca você está?</h1>
+            <p className="text-sm text-muted-foreground">Vamos liberar só os itens que essa barraca vende.</p>
+          </header>
+          <ul className="flex-1 space-y-2 overflow-y-auto px-5 pt-4 pb-10">
+            {s.barracas.length === 0 && (
+              <li className="rounded-2xl border-2 border-dashed border-border p-8 text-center text-sm text-muted-foreground">
+                Nenhuma barraca cadastrada.<br />Peça pro organizador criar no painel Admin.
+              </li>
+            )}
+            {s.barracas.map((b) => (
+              <li key={b.id}>
+                <button
+                  onClick={() => pickBarraca(b.id)}
+                  className="flex w-full items-center gap-3 rounded-2xl border border-border bg-card p-4 text-left shadow-soft active:scale-[0.99] active:border-foreground transition"
+                >
+                  <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-secondary text-2xl">{b.emoji}</span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block font-serif text-lg leading-tight">{b.name}</span>
+                    <span className="block text-[11px] uppercase tracking-wider text-muted-foreground">
+                      {b.attendant ? `Atendente: ${b.attendant} · ` : ""}{b.productIds.length} {b.productIds.length === 1 ? "item" : "itens"}
+                    </span>
+                  </span>
+                  <span className="text-foreground/40">›</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+        <InstallPrompt appName="FestaCash PDV" />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-[100svh] bg-background">
       <div
@@ -119,10 +184,12 @@ function BarracaApp() {
           <button onClick={reset} className="grid h-10 w-10 place-items-center rounded-full bg-secondary active:scale-95 transition">
             <ChevronLeft className="h-5 w-5" />
           </button>
-          <div className="text-center leading-tight">
-            <div className="font-display text-base">PDV · Pastelaria</div>
-            <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Atendente: João</div>
-          </div>
+          <button onClick={switchBarraca} className="text-center leading-tight active:scale-95 transition">
+            <div className="font-display text-base">{current.emoji} PDV · {current.name}</div>
+            <div className="text-[10px] uppercase tracking-widest text-muted-foreground">
+              {current.attendant ? `Atendente: ${current.attendant}` : "Toque pra trocar"} · trocar
+            </div>
+          </button>
           <span className="grid h-10 w-10 place-items-center rounded-full bg-success/15 text-success text-xs font-bold">●</span>
         </header>
 
@@ -142,7 +209,7 @@ function BarracaApp() {
                   <ScanLine className="h-8 w-8" />
                 </div>
                 <div className="mt-3 font-serif text-xl">Escanear cliente</div>
-                <div className="text-xs opacity-70">Aponte para o QR Code</div>
+                <div className="text-xs opacity-70">Aponte para o QR Code do app ou da fichinha</div>
                 {scanning && (
                   <motion.div
                     initial={{ y: -120 }}
@@ -178,32 +245,22 @@ function BarracaApp() {
           </AnimatePresence>
         </div>
 
-        {/* Search + filters */}
-        <div className="px-5 mt-4 space-y-3">
+        {/* Search */}
+        <div className="px-5 mt-4">
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="Buscar produto..."
+              placeholder={`Buscar em ${current.name}...`}
               className="w-full rounded-full border border-border bg-card pl-9 pr-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring"
             />
           </div>
-          <div className="-mx-5 overflow-x-auto px-5">
-            <div className="flex gap-2 pb-1">
-              {barracas.map((b) => (
-                <button
-                  key={b}
-                  onClick={() => setFilter(b)}
-                  className={`shrink-0 rounded-full px-3.5 py-1.5 text-xs font-semibold transition ${
-                    filter === b ? "bg-foreground text-background" : "bg-secondary text-foreground/70"
-                  }`}
-                >
-                  {b}
-                </button>
-              ))}
+          {allowed.length === 0 && (
+            <div className="mt-3 rounded-2xl border-2 border-dashed border-warning/40 bg-warning/5 p-4 text-xs text-foreground/70">
+              Esta barraca ainda não tem produtos liberados. Peça pro organizador atribuir itens em <span className="font-semibold">Admin → Barracas</span>.
             </div>
-          </div>
+          )}
         </div>
 
         {/* Products grid */}

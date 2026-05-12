@@ -124,7 +124,7 @@ function CaixaPage() {
           />
         )}
 
-        {!issued && (
+        {tab === "emitir" && canIssue && !issued && (
           <div className="mt-6 grid gap-6 lg:grid-cols-[1.2fr_1fr]">
             {/* Form */}
             <section className="rounded-3xl border-2 border-foreground bg-card p-6 shadow-pop">

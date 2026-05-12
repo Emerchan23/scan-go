@@ -38,9 +38,11 @@ function ClientApp() {
   }, [toast]);
 
   return (
-    <div className="min-h-[100svh] bg-foreground/5">
-      <div className="mx-auto flex min-h-[100svh] w-full max-w-md flex-col bg-background shadow-pop md:my-6 md:min-h-[860px] md:rounded-[44px] md:overflow-hidden md:ring-8 md:ring-foreground/90">
-        <StatusBar now={now} />
+    <div className="min-h-[100svh] bg-background">
+      <div
+        className="mx-auto flex min-h-[100svh] w-full max-w-md flex-col bg-background"
+        style={{ paddingTop: "env(safe-area-inset-top)" }}
+      >
 
         {/* Header */}
         <div className="relative flex items-center justify-between px-5 pt-2 pb-3">

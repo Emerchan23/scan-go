@@ -312,3 +312,142 @@ function StatusBadge({ status }: { status: Tenant["status"] }) {
   };
   return <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${map[status]}`}>{status}</span>;
 }
+
+function SplitSection({ tenants }: { tenants: Tenant[] }) {
+  const s = useStore();
+  const fee = s.platformFee ?? 0.02;
+  const [draft, setDraft] = useState<number>(Math.round(fee * 1000) / 10);
+
+  const apply = () => setPlatformFee(draft / 100);
+
+  const totalGmv = tenants.reduce((a, t) => a + t.gmv, 0);
+  const platformRevenue = Math.round(totalGmv * (draft / 100));
+
+  return (
+    <div className="mt-8 rounded-3xl border-2 border-foreground bg-card p-6 shadow-pop">
+      <div className="flex items-start justify-between flex-wrap gap-4">
+        <div>
+          <div className="text-xs uppercase tracking-widest text-muted-foreground">Monetização</div>
+          <h2 className="font-serif text-3xl mt-1">Split do Mercado Pago</h2>
+          <p className="mt-1 max-w-xl text-sm text-muted-foreground">
+            Cada compra de crédito é dividida automaticamente: a sua taxa cai na sua conta,
+            o resto vai direto pra escola. Sem custódia, sem repasse manual.
+          </p>
+        </div>
+        <span className="rounded-full bg-success/15 px-3 py-1 text-xs font-semibold text-success">
+          ✓ Mercado Pago Marketplace conectado
+        </span>
+      </div>
+
+      <div className="mt-6 grid gap-6 lg:grid-cols-[1.2fr_1fr]">
+        <div className="rounded-2xl bg-secondary p-5">
+          <div className="flex items-baseline justify-between">
+            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Taxa padrão da plataforma</span>
+            <span className="font-display text-4xl text-primary">{draft.toFixed(1)}%</span>
+          </div>
+          <input
+            type="range"
+            min={0.5}
+            max={5}
+            step={0.1}
+            value={draft}
+            onChange={(e) => setDraft(Number(e.target.value))}
+            className="mt-4 w-full accent-[oklch(0.62_0.21_35)]"
+          />
+          <div className="mt-1 flex justify-between text-[10px] text-muted-foreground">
+            <span>0,5%</span><span>1%</span><span>2%</span><span>3%</span><span>4%</span><span>5%</span>
+          </div>
+
+          <div className="mt-5 grid grid-cols-3 gap-2">
+            {[1, 2, 3].map((v) => (
+              <button
+                key={v}
+                onClick={() => setDraft(v)}
+                className={`rounded-xl border-2 py-2 font-display text-sm ${draft === v ? "border-foreground bg-accent" : "border-border bg-background"}`}
+              >
+                {v}%
+              </button>
+            ))}
+          </div>
+
+          <button
+            onClick={apply}
+            disabled={Math.abs(draft - fee * 100) < 0.01}
+            className="mt-5 w-full rounded-full bg-primary py-3 text-sm font-semibold text-primary-foreground shadow-pop disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Salvar nova taxa padrão
+          </button>
+          <p className="mt-2 text-center text-xs text-muted-foreground">
+            Atual em produção: <strong>{(fee * 100).toFixed(1)}%</strong>
+          </p>
+        </div>
+
+        <div className="rounded-2xl border border-border bg-background p-5">
+          <h3 className="font-serif text-xl">Simulação: cliente compra R$ 100</h3>
+          <div className="mt-4 h-3 overflow-hidden rounded-full bg-muted">
+            <div className="h-full bg-primary" style={{ width: `${draft}%` }} />
+          </div>
+          <div className="mt-3 flex justify-between text-xs">
+            <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-primary" /> Você ({draft.toFixed(1)}%)</span>
+            <span className="flex items-center gap-1.5">Escola ({(100 - draft).toFixed(1)}%) <span className="h-2 w-2 rounded-full bg-muted-foreground" /></span>
+          </div>
+
+          <div className="mt-5 grid grid-cols-2 gap-3">
+            <div className="rounded-xl bg-success/10 p-3">
+              <div className="text-[11px] font-semibold uppercase text-success">Pra escola</div>
+              <div className="font-display text-2xl">R$ {(100 - draft).toFixed(2)}</div>
+            </div>
+            <div className="rounded-xl bg-primary/10 p-3">
+              <div className="text-[11px] font-semibold uppercase text-primary">Pra você</div>
+              <div className="font-display text-2xl">R$ {draft.toFixed(2)}</div>
+            </div>
+          </div>
+
+          <div className="mt-4 rounded-xl bg-accent/30 p-3 text-xs">
+            Com a taxa em <strong>{draft.toFixed(1)}%</strong> sobre R$ {(totalGmv / 1000).toFixed(0)}k de GMV,
+            sua receita de split seria <strong className="text-primary">R$ {platformRevenue.toLocaleString("pt-BR")}</strong>.
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-6">
+        <div className="flex items-center justify-between">
+          <h3 className="font-serif text-xl">Taxa por cliente</h3>
+          <span className="text-xs text-muted-foreground">override individual quando precisar</span>
+        </div>
+        <div className="mt-3 overflow-x-auto rounded-2xl border border-border">
+          <table className="w-full text-sm">
+            <thead className="bg-secondary text-left text-xs uppercase tracking-wider text-muted-foreground">
+              <tr>
+                <th className="px-4 py-3">Cliente</th>
+                <th>Plano</th>
+                <th>GMV</th>
+                <th>Taxa aplicada</th>
+                <th className="text-right pr-4">Sua receita</th>
+              </tr>
+            </thead>
+            <tbody>
+              {tenants.slice(0, 6).map((t) => {
+                const tFee = t.plan === "Enterprise" ? 0.008 : draft / 100;
+                const rev = Math.round(t.gmv * tFee);
+                return (
+                  <tr key={t.id} className="border-t border-border">
+                    <td className="px-4 py-3 font-semibold">{t.name}</td>
+                    <td>{t.plan}</td>
+                    <td>R$ {t.gmv.toLocaleString("pt-BR")}</td>
+                    <td>
+                      <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${t.plan === "Enterprise" ? "bg-foreground text-background" : "bg-secondary"}`}>
+                        {(tFee * 100).toFixed(1)}%
+                      </span>
+                    </td>
+                    <td className="text-right pr-4 font-display text-primary">R$ {rev.toLocaleString("pt-BR")}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}

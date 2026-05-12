@@ -2,9 +2,10 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { QRCodeSVG } from "qrcode.react";
-import { AlertTriangle, Battery, Bell, ChevronRight, Clock, History, Home, Info, Plus, QrCode as QrIcon, Search, Send, ShoppingBag, Signal, Wifi } from "lucide-react";
+import { AlertTriangle, Bell, ChevronRight, Clock, History, Home, Info, Plus, QrCode as QrIcon, Search, Send, ShoppingBag } from "lucide-react";
 
 import { addCredits, requestRefund, transfer, useStore, type Product, type ProductKind } from "@/lib/festa-store";
+import { InstallPrompt } from "@/components/install-prompt";
 
 export const Route = createFileRoute("/cliente")({
   head: () => ({

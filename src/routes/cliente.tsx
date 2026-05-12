@@ -1,22 +1,22 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { QRCodeSVG } from "qrcode.react";
-import { Battery, Bell, ChevronRight, History, Home, Plus, QrCode as QrIcon, Send, Settings, Signal, Wifi } from "lucide-react";
+import { AlertTriangle, Battery, Bell, ChevronRight, Clock, History, Home, Info, Plus, QrCode as QrIcon, Search, Send, ShoppingBag, Signal, Wifi } from "lucide-react";
 
-import { addCredits, transfer, useStore } from "@/lib/festa-store";
+import { addCredits, requestRefund, transfer, useStore, type Product, type ProductKind } from "@/lib/festa-store";
 
 export const Route = createFileRoute("/cliente")({
   head: () => ({
     meta: [
       { title: "FestaCash — Sua carteira do evento" },
-      { name: "description", content: "Compre créditos, mostre seu QR Code e transfira saldo para amigos." },
+      { name: "description", content: "Compre créditos, veja o catálogo da festa, mostre seu QR Code e acompanhe seu saldo." },
     ],
   }),
   component: ClientApp,
 });
 
-type Tab = "home" | "qr" | "comprar" | "transferir" | "historico";
+type Tab = "home" | "catalogo" | "comprar" | "qr" | "historico";
 
 function ClientApp() {
   const s = useStore();

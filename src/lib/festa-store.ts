@@ -488,6 +488,7 @@ export function issueWallet(opts: { holder?: string; amount: number; issuedBy: s
   const pass = opts.passphrase?.trim();
   if (pass && pass.length < 3) throw new Error("Palavra-chave muito curta (mín. 3 caracteres)");
   const s = read();
+  if (s.salesStatus.topUps === "closed") throw new Error("Recargas encerradas — não é possível emitir novas fichas");
   let code = genWalletCode();
   while (s.wallets.find((w) => w.code === code)) code = genWalletCode();
   const w: Wallet = {

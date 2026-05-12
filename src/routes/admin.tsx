@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useRef, useState } from "react";
 import { SiteHeader } from "@/components/site-header";
 import { Bunting } from "@/components/bunting";
-import { buildSalesCSV, buildStockCSV, closeAllSales, closeTopUps, connectSplit, decideRefundRequest, disconnectSplit, removeBarraca, removeProduct, reopenSales, reset, restockProduct, setClientStockVisibility, setPolicy, stockStatus, toggleBarracaProduct, upsertBarraca, upsertProduct, useStore, type Barraca, type Product, type ProductKind, type StockVisibility } from "@/lib/festa-store";
+import { archiveEvent, buildSalesCSV, buildStockCSV, closeAllSales, closeTopUps, connectSplit, createEvent, decideRefundRequest, disconnectSplit, reactivateEvent, removeBarraca, removeProduct, reopenSales, reset, restockProduct, setClientStockVisibility, setPolicy, stockStatus, switchEvent, toggleBarracaProduct, upsertBarraca, upsertProduct, useStore, type Barraca, type Product, type ProductKind, type StockVisibility } from "@/lib/festa-store";
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 export const Route = createFileRoute("/admin")({
@@ -194,6 +194,8 @@ function AdminPage() {
           <PolicyCard />
         </div>
         <PolicyExplainer />
+
+        <EventManager />
 
         <SalesControlCard />
         <StockManager />
@@ -1126,6 +1128,88 @@ function StockManager() {
                 className="rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground shadow-pop"
               >+ {qty} unidades</button>
             </div>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
+/* ----------------------------- Event Manager --------------------------- */
+
+function EventManager() {
+  const s = useStore();
+  const [open, setOpen] = useState(false);
+  const [form, setForm] = useState({ name: "", date: "", org: s.event.org });
+
+  const create = () => {
+    if (!form.name.trim()) return;
+    const ev = createEvent(form);
+    switchEvent(ev.id);
+    setOpen(false);
+    setForm({ name: "", date: "", org: s.event.org });
+  };
+
+  return (
+    <section className="mt-8 rounded-3xl border border-border bg-card p-5 shadow-soft">
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div>
+          <h2 className="font-serif text-2xl">Eventos da organização</h2>
+          <p className="text-sm text-muted-foreground">Crie, alterne ou arquive eventos. Os dados ativos do painel refletem o evento selecionado.</p>
+        </div>
+        <button onClick={() => setOpen(true)} className="rounded-full bg-foreground px-4 py-2 text-xs font-semibold text-background">+ Novo evento</button>
+      </div>
+
+      <ul className="mt-5 grid gap-2 sm:grid-cols-2">
+        {s.events.map((ev) => {
+          const isCurrent = ev.id === s.currentEventId;
+          return (
+            <li key={ev.id} className={`rounded-2xl border p-4 ${isCurrent ? "border-foreground bg-accent/30" : "border-border bg-background"}`}>
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="font-serif text-lg leading-tight truncate">{ev.name}</div>
+                  <div className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                    {ev.date} · {ev.org} · <span className={ev.status === "archived" ? "text-muted-foreground" : "text-success"}>{ev.status === "archived" ? "arquivado" : "ativo"}</span>
+                  </div>
+                </div>
+                {isCurrent && <span className="shrink-0 rounded-full bg-primary px-2 py-0.5 text-[10px] font-bold text-primary-foreground">SELECIONADO</span>}
+              </div>
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {!isCurrent && ev.status === "active" && (
+                  <button onClick={() => switchEvent(ev.id)} className="rounded-full bg-primary px-3 py-1 text-[11px] font-semibold text-primary-foreground">Selecionar</button>
+                )}
+                {ev.status === "active" ? (
+                  <button onClick={() => { if (confirm(`Arquivar "${ev.name}"?`)) archiveEvent(ev.id); }} className="rounded-full border border-border px-3 py-1 text-[11px] font-semibold">Arquivar</button>
+                ) : (
+                  <button onClick={() => reactivateEvent(ev.id)} className="rounded-full border border-border px-3 py-1 text-[11px] font-semibold">Reativar</button>
+                )}
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+
+      {open && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-foreground/40 p-4" onClick={() => setOpen(false)}>
+          <div onClick={(e) => e.stopPropagation()} className="w-full max-w-md rounded-3xl border-2 border-foreground bg-card p-6 shadow-pop">
+            <h3 className="font-serif text-2xl">Novo evento</h3>
+            <p className="text-xs text-muted-foreground">Será criado e selecionado automaticamente. Você pode arquivar a qualquer momento.</p>
+            <div className="mt-4 grid gap-3">
+              <Field label="Nome do evento">
+                <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="input" placeholder="Ex.: Festa de Outubro 2026" />
+              </Field>
+              <Field label="Data">
+                <input value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} className="input" placeholder="Ex.: 12 de outubro" />
+              </Field>
+              <Field label="Organização">
+                <input value={form.org} onChange={(e) => setForm({ ...form, org: e.target.value })} className="input" />
+              </Field>
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <button onClick={() => setOpen(false)} className="rounded-full border border-border px-4 py-2 text-sm">Cancelar</button>
+              <button disabled={!form.name.trim()} onClick={create} className="rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground shadow-pop disabled:opacity-50">Criar</button>
+            </div>
+            <style>{`.input{width:100%;border-radius:0.75rem;border:1px solid var(--border);background:var(--background);padding:0.6rem 0.85rem;font-size:0.875rem;outline:none}.input:focus{box-shadow:0 0 0 2px var(--ring)}`}</style>
           </div>
         </div>
       )}

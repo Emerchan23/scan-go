@@ -1,9 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Check, ChevronLeft, Minus, Plus, ScanLine, Search, Trash2, X } from "lucide-react";
+import { Check, ChevronLeft, Minus, Plus, ScanLine, Search, Trash2, Undo2, X } from "lucide-react";
 import { InstallPrompt } from "@/components/install-prompt";
-import { chargeProduct, stockStatus, useStore, verifyWalletAccess, type Barraca, type Product, type Wallet } from "@/lib/festa-store";
+import { cancelSale, chargeProduct, stockStatus, useStore, verifyWalletAccess, type Barraca, type Product, type Wallet } from "@/lib/festa-store";
 
 const BARRACA_KEY = "festacash:current-barraca";
 
@@ -215,7 +215,10 @@ function BarracaApp() {
               {current.attendant ? `Atendente: ${current.attendant}` : "Toque pra trocar"} · trocar
             </div>
           </button>
-          <span className="grid h-10 w-10 place-items-center rounded-full bg-success/15 text-success text-xs font-bold">●</span>
+          <div className="flex items-center gap-2">
+            <UndoLastSaleButton barracaName={current.name} attendant={current.attendant ?? "Atendente"} onError={setError} />
+            <span className="grid h-10 w-10 place-items-center rounded-full bg-success/15 text-success text-xs font-bold">●</span>
+          </div>
         </header>
 
         {/* Customer strip */}
@@ -633,5 +636,71 @@ function FichaModal({
         </p>
       </motion.div>
     </motion.div>
+  );
+}
+
+/* ----------------------------- Cancelar última venda ------------------- */
+
+function UndoLastSaleButton({ barracaName, attendant, onError }: { barracaName: string; attendant: string; onError: (m: string) => void }) {
+  const s = useStore();
+  const [open, setOpen] = useState(false);
+  const last = s.sales.find((x) => x.barraca === barracaName && (x.refunded ?? 0) < x.price);
+
+  if (!last) return null;
+  const minutes = Math.floor((Date.now() - last.at) / 60000);
+
+  const undo = () => {
+    try {
+      cancelSale(last.id, attendant, "Cancelado pelo PDV (última venda)");
+      setOpen(false);
+    } catch (e: any) {
+      onError(e?.message ?? "Erro ao cancelar");
+      setOpen(false);
+    }
+  };
+
+  return (
+    <>
+      <button
+        onClick={() => setOpen(true)}
+        className="inline-flex items-center gap-1 rounded-full border border-warning/40 bg-warning/10 px-3 py-1.5 text-[11px] font-semibold text-warning"
+        title="Cancelar última venda"
+      >
+        <Undo2 className="h-3.5 w-3.5" /> Desfazer
+      </button>
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="absolute inset-0 z-50 grid place-items-center bg-foreground/60 p-4"
+            onClick={() => setOpen(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9 }} animate={{ scale: 1 }} exit={{ scale: 0.9 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-sm rounded-3xl border-2 border-foreground bg-card p-5 shadow-pop"
+            >
+              <div className="flex items-center gap-3">
+                <span className="grid h-12 w-12 place-items-center rounded-2xl bg-warning/15 text-warning"><Undo2 className="h-6 w-6" /></span>
+                <div>
+                  <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Cancelar última venda</div>
+                  <div className="font-serif text-lg leading-tight">{last.product}</div>
+                </div>
+              </div>
+              <div className="mt-4 rounded-2xl bg-secondary p-3 text-sm">
+                <div className="flex justify-between"><span>Cliente</span><span className="font-semibold">{last.user}</span></div>
+                <div className="flex justify-between"><span>Valor</span><span className="font-display text-primary">R$ {last.price}</span></div>
+                <div className="flex justify-between text-xs text-muted-foreground"><span>Há</span><span>{minutes < 1 ? "menos de 1 min" : `${minutes} min`}</span></div>
+              </div>
+              <p className="mt-3 text-[11px] text-muted-foreground">O saldo volta pra carteira/ficha do cliente e o estoque é reposto. A operação fica registrada.</p>
+              <div className="mt-4 flex gap-2">
+                <button onClick={() => setOpen(false)} className="flex-1 rounded-full border border-border py-2.5 text-sm font-semibold">Não cancelar</button>
+                <button onClick={undo} className="flex-1 rounded-full bg-destructive py-2.5 text-sm font-semibold text-destructive-foreground">Cancelar venda</button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
   );
 }

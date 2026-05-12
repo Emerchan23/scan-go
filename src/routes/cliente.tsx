@@ -23,6 +23,7 @@ function ClientApp() {
   const [tab, setTab] = useState<Tab>("home");
   const [now, setNow] = useState(() => new Date());
   const [toast, setToast] = useState<string | null>(null);
+  const [transferOpen, setTransferOpen] = useState(false);
 
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 30_000);
@@ -37,7 +38,6 @@ function ClientApp() {
 
   return (
     <div className="min-h-[100svh] bg-foreground/5">
-      {/* Phone-like app shell */}
       <div className="mx-auto flex min-h-[100svh] w-full max-w-md flex-col bg-background shadow-pop md:my-6 md:min-h-[860px] md:rounded-[44px] md:overflow-hidden md:ring-8 md:ring-foreground/90">
         <StatusBar now={now} />
 
@@ -81,14 +81,21 @@ function ClientApp() {
               transition={{ duration: 0.18 }}
               className="px-5"
             >
-              {tab === "home" && <HomeView onTab={setTab} />}
+              {tab === "home" && <HomeView onTab={setTab} onTransfer={() => setTransferOpen(true)} onToast={setToast} />}
+              {tab === "catalogo" && <CatalogView onTab={setTab} />}
               {tab === "qr" && <QrView />}
               {tab === "comprar" && <BuyView onDone={(m) => { setToast(m); setTab("home"); }} />}
-              {tab === "transferir" && <TransferView onDone={setToast} />}
-              {tab === "historico" && <HistoryView />}
+              {tab === "historico" && <HistoryView onToast={setToast} />}
             </motion.div>
           </AnimatePresence>
         </div>
+
+        {/* Transfer bottom sheet */}
+        <AnimatePresence>
+          {transferOpen && (
+            <TransferSheet onClose={() => setTransferOpen(false)} onDone={(m) => { setToast(m); setTransferOpen(false); }} />
+          )}
+        </AnimatePresence>
 
         {/* Bottom tab bar */}
         <BottomBar tab={tab} onTab={setTab} />

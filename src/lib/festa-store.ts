@@ -411,7 +411,12 @@ export function chargeProduct(productId: string, walletCode?: string, passphrase
     newBalance = s.user.balance;
   }
 
-  if (typeof p.stock === "number") p.stock = Math.max(0, p.stock - 1);
+  if (typeof p.stock === "number") {
+    p.stock = Math.max(0, p.stock - 1);
+    const alert = p.stockAlert ?? 10;
+    if (p.stock === 0) pushNotif(s, { audience: "admin", kind: "danger", title: `${p.emoji} ${p.name} esgotou`, body: `${p.barraca} — produto fora de estoque.` });
+    else if (p.stock === alert) pushNotif(s, { audience: "admin", kind: "warn", title: `${p.emoji} ${p.name} acabando`, body: `Restam ${p.stock} unidades em ${p.barraca}.` });
+  }
 
   s.sales.unshift({
     id: "s_" + Math.random().toString(36).slice(2, 9),
@@ -424,6 +429,10 @@ export function chargeProduct(productId: string, walletCode?: string, passphrase
     walletCode,
     refunded: 0,
   });
+  // Notif pro dono do saldo (cliente)
+  if (!walletCode) {
+    pushNotif(s, { audience: "client", forUser: payerName, kind: "info", title: `Compra: ${p.name}`, body: `R$ ${p.price} em ${p.barraca}. Saldo: R$ ${newBalance}.` });
+  }
   write(s);
   return { product: p, balance: newBalance };
 }

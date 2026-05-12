@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useRef, useState } from "react";
 import { SiteHeader } from "@/components/site-header";
 import { Bunting } from "@/components/bunting";
-import { connectSplit, disconnectSplit, removeProduct, reset, setPolicy, upsertProduct, useStore, type Product, type ProductKind } from "@/lib/festa-store";
+import { connectSplit, disconnectSplit, removeBarraca, removeProduct, reset, setPolicy, toggleBarracaProduct, upsertBarraca, upsertProduct, useStore, type Barraca, type Product, type ProductKind } from "@/lib/festa-store";
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 export const Route = createFileRoute("/admin")({

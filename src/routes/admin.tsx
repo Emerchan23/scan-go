@@ -50,7 +50,14 @@ function AdminPage() {
           </div>
           <div className="flex gap-2">
             <button onClick={reset} className="rounded-full border border-border bg-card px-4 py-2 text-xs font-semibold">Resetar demo</button>
-            <button className="rounded-full bg-foreground px-4 py-2 text-xs font-semibold text-background">Exportar relatório</button>
+            <button onClick={() => {
+              const csv = buildSalesCSV() + "\n\n" + buildStockCSV();
+              const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement("a"); a.href = url;
+              a.download = `festacash-${new Date().toISOString().slice(0,10)}.csv`; a.click();
+              URL.revokeObjectURL(url);
+            }} className="rounded-full bg-foreground px-4 py-2 text-xs font-semibold text-background">Exportar relatório</button>
           </div>
         </div>
 

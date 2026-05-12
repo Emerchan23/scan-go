@@ -412,6 +412,8 @@ export function convertBalanceToWallet(opts: { amount: number; passphrase?: stri
     passphrase: opts.passphrase,
   });
 }
+
+export function findWallet(code: string): Wallet | undefined {
   return read().wallets.find((w) => w.code.toUpperCase() === code.toUpperCase());
 }
 

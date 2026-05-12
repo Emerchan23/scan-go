@@ -23,6 +23,8 @@ export function SiteHeader() {
   const myPerms = myRole?.permissions ?? [];
   const canSee = (p?: string) => !p || myPerms.includes("admin.full") || myPerms.includes(p as any);
 
+  useEffect(() => { applyStoredTheme(); }, [s.theme]);
+
   return (
     <header className="sticky top-0 z-30 border-b border-border/60 bg-background/80 backdrop-blur">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-3 px-5">

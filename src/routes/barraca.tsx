@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Check, ChevronLeft, Minus, Plus, ScanLine, Search, Trash2, X } from "lucide-react";
 import { InstallPrompt } from "@/components/install-prompt";
-import { chargeProduct, useStore, type Barraca, type Product } from "@/lib/festa-store";
+import { chargeProduct, useStore, verifyWalletAccess, type Barraca, type Product, type Wallet } from "@/lib/festa-store";
 
 const BARRACA_KEY = "festacash:current-barraca";
 
@@ -46,6 +46,9 @@ function BarracaApp() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [success, setSuccess] = useState<{ total: number; balance: number; items: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /** Quando preenchida, o pedido é debitado da fichinha (offline). */
+  const [ficha, setFicha] = useState<{ wallet: Wallet; passphrase: string } | null>(null);
+  const [showFichaModal, setShowFichaModal] = useState(false);
 
   // Produtos liberados pra esta barraca (N:N).
   const allowed = useMemo(() => {
@@ -86,11 +89,12 @@ function BarracaApp() {
     setCart([]);
     setSuccess(null);
     setError(null);
+    setFicha(null);
   };
 
   const add = (p: Product) => {
-    if (!scanned) {
-      setError("Escaneie o QR do cliente primeiro");
+    if (!scanned && !ficha) {
+      setError("Escaneie o QR do cliente ou valide a fichinha primeiro");
       return;
     }
     setCart((c) => {
@@ -110,22 +114,35 @@ function BarracaApp() {
   const remove = (id: string) => setCart((c) => c.filter((x) => x.product.id !== id));
 
   const checkout = () => {
-    if (!scanned || cart.length === 0) return;
-    if (s.user.balance < total) {
-      setError(`Saldo insuficiente. Cliente tem R$ ${s.user.balance}`);
+    if (cart.length === 0) return;
+    const balance = ficha ? ficha.wallet.balance : s.user.balance;
+    if (balance < total) {
+      setError(`Saldo insuficiente. ${ficha ? "Ficha" : "Cliente"} tem R$ ${balance}`);
       return;
     }
-    let lastBalance = s.user.balance;
+    let lastBalance = balance;
     try {
       for (const item of cart) {
         for (let i = 0; i < item.qty; i++) {
-          const r = chargeProduct(item.product.id);
+          const r = chargeProduct(item.product.id, ficha?.wallet.code, ficha?.passphrase);
           lastBalance = r.balance;
         }
       }
       setSuccess({ total, balance: lastBalance, items: totalQty });
     } catch (e: any) {
       setError(e.message);
+    }
+  };
+
+  const validateFicha = (code: string, passphrase: string) => {
+    try {
+      const w = verifyWalletAccess(code, passphrase);
+      setFicha({ wallet: w, passphrase: passphrase.trim().toUpperCase() });
+      setScanned(true);
+      setShowFichaModal(false);
+      setError(null);
+    } catch (e: any) {
+      throw e;
     }
   };
 
@@ -197,48 +214,63 @@ function BarracaApp() {
         <div className="px-5">
           <AnimatePresence mode="wait">
             {!scanned ? (
-              <motion.button
+              <motion.div
                 key="scan-cta"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                onClick={startScan}
-                className="relative grid w-full place-items-center overflow-hidden rounded-3xl border-2 border-foreground bg-foreground text-background py-10 active:scale-[0.99] transition"
+                className="space-y-2"
               >
-                <div className="grid h-16 w-16 place-items-center rounded-2xl bg-background/10 backdrop-blur">
-                  <ScanLine className="h-8 w-8" />
-                </div>
-                <div className="mt-3 font-serif text-xl">Escanear cliente</div>
-                <div className="text-xs opacity-70">Aponte para o QR Code do app ou da fichinha</div>
-                {scanning && (
-                  <motion.div
-                    initial={{ y: -120 }}
-                    animate={{ y: 120 }}
-                    transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
-                    className="pointer-events-none absolute left-0 right-0 h-1 bg-primary shadow-[0_0_20px_oklch(0.62_0.21_35)]"
-                  />
-                )}
-              </motion.button>
+                <button
+                  onClick={startScan}
+                  className="relative grid w-full place-items-center overflow-hidden rounded-3xl border-2 border-foreground bg-foreground text-background py-10 active:scale-[0.99] transition"
+                >
+                  <div className="grid h-16 w-16 place-items-center rounded-2xl bg-background/10 backdrop-blur">
+                    <ScanLine className="h-8 w-8" />
+                  </div>
+                  <div className="mt-3 font-serif text-xl">Escanear cliente</div>
+                  <div className="text-xs opacity-70">QR do app · sem palavra-chave</div>
+                  {scanning && (
+                    <motion.div
+                      initial={{ y: -120 }}
+                      animate={{ y: 120 }}
+                      transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
+                      className="pointer-events-none absolute left-0 right-0 h-1 bg-primary shadow-[0_0_20px_oklch(0.62_0.21_35)]"
+                    />
+                  )}
+                </button>
+                <button
+                  onClick={() => setShowFichaModal(true)}
+                  className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-foreground/40 bg-card py-3 text-sm font-semibold active:scale-[0.99] transition"
+                >
+                  🎟️ Cobrar fichinha do caixa <span className="text-muted-foreground font-normal">(offline)</span>
+                </button>
+              </motion.div>
             ) : (
               <motion.div
                 key="customer"
                 initial={{ y: 12, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
-                className="flex items-center justify-between rounded-2xl border-2 border-foreground bg-card p-4 shadow-pop"
+                className={`flex items-center justify-between rounded-2xl border-2 ${ficha ? "border-warning bg-warning/5" : "border-foreground bg-card"} p-4 shadow-pop`}
               >
                 <div className="flex items-center gap-3">
                   <div className="grid h-12 w-12 place-items-center rounded-full bg-primary text-primary-foreground font-display text-xl">
-                    {(s.user.name === "Visitante" ? "C" : s.user.name)[0]?.toUpperCase()}
+                    {ficha ? "🎟️" : (s.user.name === "Visitante" ? "C" : s.user.name)[0]?.toUpperCase()}
                   </div>
                   <div>
-                    <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Cliente</div>
-                    <div className="font-serif text-lg leading-tight">{s.user.name === "Visitante" ? "Convidado" : s.user.name}</div>
-                    <div className="text-[11px] text-muted-foreground">#{s.user.id.slice(-4)}</div>
+                    <div className="text-[10px] uppercase tracking-widest text-muted-foreground">{ficha ? "Fichinha · offline" : "Cliente"}</div>
+                    <div className="font-serif text-lg leading-tight">
+                      {ficha ? (ficha.wallet.holder ?? "Anônima") : (s.user.name === "Visitante" ? "Convidado" : s.user.name)}
+                    </div>
+                    <div className="text-[11px] text-muted-foreground font-mono">
+                      {ficha ? ficha.wallet.code : `#${s.user.id.slice(-4)}`}
+                      {ficha && <span className="ml-1 text-success">· 🔒 validada</span>}
+                    </div>
                   </div>
                 </div>
                 <div className="text-right">
                   <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Saldo</div>
-                  <div className="font-display text-2xl text-primary tabular-nums">R${s.user.balance}</div>
+                  <div className="font-display text-2xl text-primary tabular-nums">R${ficha ? ficha.wallet.balance : s.user.balance}</div>
                 </div>
               </motion.div>
             )}
@@ -322,8 +354,8 @@ function BarracaApp() {
           cart={cart}
           total={total}
           totalQty={totalQty}
-          balance={s.user.balance}
-          enabled={scanned && cart.length > 0}
+          balance={ficha ? ficha.wallet.balance : s.user.balance}
+          enabled={(scanned || !!ficha) && cart.length > 0}
           onDec={dec}
           onInc={(id) => {
             const p = s.products.find((x) => x.id === id);
@@ -337,6 +369,16 @@ function BarracaApp() {
         <AnimatePresence>
           {success && (
             <SuccessSheet success={success} onClose={reset} />
+          )}
+        </AnimatePresence>
+
+        {/* Modal: validar fichinha (offline) */}
+        <AnimatePresence>
+          {showFichaModal && (
+            <FichaModal
+              onClose={() => setShowFichaModal(false)}
+              onValidate={validateFicha}
+            />
           )}
         </AnimatePresence>
       </div>
@@ -480,6 +522,88 @@ function SuccessSheet({ success, onClose }: { success: { total: number; balance:
         <button onClick={onClose} className="mt-5 w-full rounded-full bg-foreground py-3 font-semibold text-background active:scale-[0.98] transition">
           Nova venda
         </button>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+/* ----------------------------- Ficha modal ---------------------------- */
+
+function FichaModal({
+  onClose,
+  onValidate,
+}: {
+  onClose: () => void;
+  onValidate: (code: string, passphrase: string) => void;
+}) {
+  const [code, setCode] = useState("");
+  const [pass, setPass] = useState("");
+  const [err, setErr] = useState<string | null>(null);
+
+  const submit = () => {
+    setErr(null);
+    if (!code.trim()) { setErr("Informe o código da ficha"); return; }
+    try {
+      onValidate(code, pass);
+    } catch (e: any) {
+      setErr(e?.message ?? "Erro ao validar ficha");
+    }
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      className="absolute inset-0 z-50 grid place-items-end sm:place-items-center bg-foreground/60 p-4 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ y: 30, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 30, opacity: 0 }}
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-sm rounded-3xl bg-card p-6 shadow-pop"
+      >
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Fichinha do caixa</div>
+            <h3 className="font-serif text-xl">Validar antes de cobrar</h3>
+          </div>
+          <button onClick={onClose} className="grid h-9 w-9 place-items-center rounded-full bg-secondary"><X className="h-4 w-4" /></button>
+        </div>
+
+        <label className="mt-5 block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Código da ficha</label>
+        <input
+          autoFocus
+          value={code}
+          onChange={(e) => setCode(e.target.value.toUpperCase())}
+          placeholder="F-XXXXXX"
+          className="mt-1 w-full rounded-xl border-2 border-border bg-background px-4 py-3 text-center font-mono text-lg tracking-[0.3em] outline-none focus:border-foreground"
+        />
+
+        <label className="mt-4 block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+          Palavra-chave do cliente
+        </label>
+        <input
+          value={pass}
+          onChange={(e) => setPass(e.target.value.toUpperCase().slice(0, 16))}
+          placeholder="Pergunte ao cliente"
+          className="mt-1 w-full rounded-xl border-2 border-border bg-background px-4 py-3 text-center font-mono text-lg tracking-[0.25em] outline-none focus:border-foreground"
+        />
+        <p className="mt-1 text-[11px] text-muted-foreground">
+          Deixe em branco se a ficha foi emitida sem palavra-chave.
+        </p>
+
+        {err && (
+          <div className="mt-3 rounded-xl border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">{err}</div>
+        )}
+
+        <button
+          onClick={submit}
+          className="mt-5 w-full rounded-full bg-primary py-3.5 font-semibold text-primary-foreground shadow-pop active:scale-[0.98] transition"
+        >
+          Validar ficha
+        </button>
+        <p className="mt-2 text-center text-[10px] text-muted-foreground">
+          Se a palavra-chave não bater, a ficha não cobra. Proteção contra cópia/foto do QR.
+        </p>
       </motion.div>
     </motion.div>
   );

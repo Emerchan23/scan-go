@@ -23,7 +23,9 @@ function CaixaPage() {
   const [holder, setHolder] = useState("");
   const [amount, setAmount] = useState(50);
   const [method, setMethod] = useState<"dinheiro" | "pix" | "credito">("dinheiro");
+  const [passphrase, setPassphrase] = useState("");
   const [issued, setIssued] = useState<Wallet | null>(null);
+  const [issueError, setIssueError] = useState<string | null>(null);
   const operator = "Bilheteria";
 
   const todays = useMemo(
@@ -36,8 +38,18 @@ function CaixaPage() {
   const totalToday = todays.reduce((a, w) => a + (w.balance + w.consumed), 0);
 
   const issue = () => {
-    const w = issueWallet({ holder: holder || undefined, amount, issuedBy: operator });
-    setIssued(w);
+    setIssueError(null);
+    try {
+      const w = issueWallet({
+        holder: holder || undefined,
+        amount,
+        issuedBy: operator,
+        passphrase: passphrase || undefined,
+      });
+      setIssued(w);
+    } catch (e: any) {
+      setIssueError(e?.message ?? "Erro ao emitir ficha");
+    }
   };
 
   const printNow = () => {
@@ -69,7 +81,7 @@ function CaixaPage() {
             event={s.event}
             operator={operator}
             method={method}
-            onClose={() => { setIssued(null); setHolder(""); setAmount(50); }}
+            onClose={() => { setIssued(null); setHolder(""); setAmount(50); setPassphrase(""); setIssueError(null); }}
             onPrint={printNow}
           />
         )}
@@ -135,6 +147,24 @@ function CaixaPage() {
                   </button>
                 ))}
               </div>
+
+              <div className="mt-5 flex items-center justify-between">
+                <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Palavra-chave (opcional)</div>
+                <span className="text-[10px] text-muted-foreground">🔒 anti-foto</span>
+              </div>
+              <input
+                value={passphrase}
+                onChange={(e) => setPassphrase(e.target.value.slice(0, 16))}
+                placeholder="Ex.: PIPOCA, 1234, FORRO..."
+                className="mt-1 w-full rounded-xl border border-border bg-background px-4 py-3 text-sm uppercase tracking-wider outline-none focus:ring-2 focus:ring-ring"
+              />
+              <p className="mt-1 text-[11px] leading-snug text-muted-foreground">
+                Combine algo simples com o cliente <span className="font-semibold">de boca</span>. A barraca vai pedir antes de debitar — se alguém fotografar o QR, sem a palavra não usa.
+              </p>
+
+              {issueError && (
+                <div className="mt-3 rounded-xl border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">{issueError}</div>
+              )}
 
               <button
                 onClick={issue}
@@ -283,9 +313,19 @@ function Ticket({
         <Info k="Emitida" v={new Date(wallet.issuedAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })} />
       </div>
 
+      {wallet.passphrase && variant === "canhoto" && (
+        <div className="mt-3 rounded-xl border-2 border-dashed border-foreground/40 bg-warning/10 px-3 py-2">
+          <div className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">Palavra-chave (controle interno)</div>
+          <div className="font-mono text-base tracking-[0.25em] text-foreground">{wallet.passphrase}</div>
+        </div>
+      )}
+
       {variant === "cliente" ? (
         <p className="mt-4 rounded-xl bg-secondary p-2.5 text-[10px] leading-snug text-muted-foreground">
           📱 Mostre este QR Code na barraca. O atendente escaneia e debita o valor do item. Guarde até o fim do evento.
+          {wallet.passphrase && (
+            <> <span className="font-semibold text-foreground">🔒 Esta ficha tem palavra-chave</span> — combine de boca com quem comprou. A barraca vai pedir antes de cobrar.</>
+          )}
         </p>
       ) : (
         <p className="mt-4 rounded-xl bg-secondary p-2.5 text-[10px] leading-snug text-muted-foreground">

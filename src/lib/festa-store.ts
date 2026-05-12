@@ -38,6 +38,13 @@ export type Wallet = {
   issuedBy: string;
   /** Histórico de débitos no PDV. */
   consumed: number;
+  /**
+   * Palavra-chave (segredo) que o cliente combina no caixa. Se definida,
+   * a barraca SÓ debita após o atendente conferir verbalmente. Defesa
+   * contra alguém fotografar o QR e tentar usar a ficha.
+   * Guardada em maiúsculas/normalizada — comparação case-insensitive.
+   */
+  passphrase?: string;
 };
 
 export type Sale = { id: string; productId: string; product: string; price: number; barraca: string; at: number; user: string };
@@ -169,9 +176,11 @@ export function transfer(amount: number) {
 
 /**
  * Cobra um produto. Se `walletCode` for informado, debita da ficha emitida
- * pelo Caixa; caso contrário, da carteira do cliente logado.
+ * pelo Caixa; caso contrário, da carteira do cliente logado. Quando a ficha
+ * tem `passphrase`, é obrigatório passar `passphrase` correta — protege
+ * fichas que vazem por foto do QR.
  */
-export function chargeProduct(productId: string, walletCode?: string) {
+export function chargeProduct(productId: string, walletCode?: string, passphrase?: string) {
   const s = read();
   const p = s.products.find((x) => x.id === productId);
   if (!p) throw new Error("Produto não encontrado");
@@ -182,6 +191,11 @@ export function chargeProduct(productId: string, walletCode?: string) {
   if (walletCode) {
     const w = s.wallets.find((x) => x.code === walletCode);
     if (!w) throw new Error("Ficha não encontrada");
+    if (w.passphrase) {
+      const given = (passphrase ?? "").trim().toUpperCase();
+      if (!given) throw new Error("Esta ficha exige palavra-chave");
+      if (given !== w.passphrase) throw new Error("Palavra-chave incorreta");
+    }
     if (w.balance < p.price) throw new Error("Saldo da ficha insuficiente");
     w.balance -= p.price;
     w.consumed += p.price;
@@ -204,6 +218,19 @@ export function chargeProduct(productId: string, walletCode?: string) {
   });
   write(s);
   return { product: p, balance: newBalance };
+}
+
+/** Verifica código + palavra-chave. Usado no PDV antes de montar o pedido. */
+export function verifyWalletAccess(code: string, passphrase?: string): Wallet {
+  const s = read();
+  const w = s.wallets.find((x) => x.code.toUpperCase() === code.trim().toUpperCase());
+  if (!w) throw new Error("Ficha não encontrada");
+  if (w.passphrase) {
+    const given = (passphrase ?? "").trim().toUpperCase();
+    if (!given) throw new Error("Esta ficha exige palavra-chave");
+    if (given !== w.passphrase) throw new Error("Palavra-chave incorreta");
+  }
+  return w;
 }
 
 /* ---------------------- Barracas (CRUD + atribuição) -------------------- */
@@ -249,8 +276,10 @@ function genWalletCode() {
 }
 
 /** Caixa emite uma ficha (carteira offline) com saldo. Devolve a ficha. */
-export function issueWallet(opts: { holder?: string; amount: number; issuedBy: string }): Wallet {
+export function issueWallet(opts: { holder?: string; amount: number; issuedBy: string; passphrase?: string }): Wallet {
   if (opts.amount <= 0) throw new Error("Valor inválido");
+  const pass = opts.passphrase?.trim();
+  if (pass && pass.length < 3) throw new Error("Palavra-chave muito curta (mín. 3 caracteres)");
   const s = read();
   let code = genWalletCode();
   while (s.wallets.find((w) => w.code === code)) code = genWalletCode();
@@ -261,6 +290,7 @@ export function issueWallet(opts: { holder?: string; amount: number; issuedBy: s
     issuedAt: Date.now(),
     issuedBy: opts.issuedBy,
     consumed: 0,
+    passphrase: pass ? pass.toUpperCase() : undefined,
   };
   s.wallets.unshift(w);
   write(s);

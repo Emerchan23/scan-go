@@ -8,16 +8,36 @@ export type Product = {
   name: string;
   price: number;
   emoji: string;
+  /** Nome legado / fallback de barraca (compat com seeds antigos). */
   barraca: string;
   kind: ProductKind;
-  /** Foto do produto (URL ou data:URL salvo do upload). */
   image?: string;
-  /** Descrição curta para o catálogo. */
   description?: string;
-  /** Tempo de uso em minutos — usado em brinquedos / ingressos. */
   durationMin?: number;
-  /** Estoque (opcional). */
   stock?: number;
+};
+
+/** Barraca cadastrada pelo organizador. */
+export type Barraca = {
+  id: string;
+  name: string;
+  emoji: string;
+  attendant?: string;
+  /** Produtos liberados pra venda nesta barraca (N:N). */
+  productIds: string[];
+};
+
+/** Ficha offline emitida pelo Caixa — carteira com saldo e QR próprio. */
+export type Wallet = {
+  /** Código curto pra impressão (ex.: F-7K9XA2). */
+  code: string;
+  /** Nome do portador (opcional — pulseira pode ser anônima). */
+  holder?: string;
+  balance: number;
+  issuedAt: number;
+  issuedBy: string;
+  /** Histórico de débitos no PDV. */
+  consumed: number;
 };
 
 export type Sale = { id: string; productId: string; product: string; price: number; barraca: string; at: number; user: string };

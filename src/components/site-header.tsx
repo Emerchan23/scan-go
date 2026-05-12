@@ -2,6 +2,7 @@ import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { applyStoredTheme, logout, setTheme, useStore } from "@/lib/festa-store";
 import { LogOut, Moon, Sun } from "lucide-react";
+import { NotificationBell } from "@/components/notification-bell";
 
 const items = [
   { to: "/", label: "Início" },
@@ -49,6 +50,7 @@ export function SiteHeader() {
           })}
         </nav>
         <div className="flex items-center gap-2">
+          {me && <NotificationBell audience="admin" who={me.id} tone="dark" />}
           <button
             onClick={() => setTheme(s.theme === "dark" ? "light" : "dark")}
             className="grid h-9 w-9 place-items-center rounded-full border border-border bg-card text-foreground/80"

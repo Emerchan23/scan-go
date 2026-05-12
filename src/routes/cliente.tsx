@@ -34,7 +34,7 @@ function ClientApp() {
   return (
     <div className="min-h-[100svh] bg-background">
       <div
-        className="mx-auto flex min-h-[100svh] w-full max-w-md flex-col bg-background"
+        className="relative mx-auto flex min-h-[100svh] w-full max-w-md flex-col bg-background"
         style={{ paddingTop: "env(safe-area-inset-top)" }}
       >
 

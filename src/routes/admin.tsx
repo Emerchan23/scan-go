@@ -469,3 +469,127 @@ function PolicyExplainer() {
     </div>
   );
 }
+
+/* --------------------------- Split Mercado Pago --------------------------- */
+
+function SplitCard() {
+  const s = useStore();
+  const sp = s.split;
+  const fee = s.platformFee ?? 0.02;
+  const consumed = s.sales.reduce((a, x) => a + x.price, 0);
+  const totalSold = s.user.balance + consumed;
+  const yourCut = Math.round((totalSold * (1 - fee)) * 100) / 100;
+  const platformCut = Math.round((totalSold * fee) * 100) / 100;
+
+  const [open, setOpen] = useState(false);
+  const [form, setForm] = useState({ holder: "", document: "", email: "" });
+
+  const connected = sp.status === "connected";
+
+  return (
+    <div className="rounded-3xl border border-border bg-card p-5 shadow-soft">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h2 className="font-serif text-2xl">Sua conta de recebimento</h2>
+          <p className="text-sm text-muted-foreground">A FestaCash não custodia dinheiro. O valor cai direto na conta Mercado Pago abaixo.</p>
+        </div>
+        <span className={`shrink-0 rounded-full px-3 py-1 text-[11px] font-semibold ${connected ? "bg-success/15 text-success" : "bg-warning/15 text-warning"}`}>
+          {connected ? "Conectada" : "Pendente"}
+        </span>
+      </div>
+
+      {connected ? (
+        <div className="mt-4 rounded-2xl border-2 border-foreground bg-gradient-to-br from-[oklch(0.62_0.21_35)] to-[oklch(0.45_0.18_25)] p-5 text-background shadow-pop">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-semibold uppercase tracking-widest opacity-80">Mercado Pago</span>
+            <span className="text-[11px] font-semibold opacity-80">ID {sp.mpUserId}</span>
+          </div>
+          <div className="mt-4 font-display text-2xl">{sp.holder}</div>
+          <div className="mt-1 font-mono text-sm tracking-wider opacity-90">{sp.document}</div>
+          <div className="mt-4 flex items-end justify-between">
+            <div>
+              <div className="text-[10px] uppercase tracking-wider opacity-70">Email</div>
+              <div className="text-xs">{sp.email}</div>
+            </div>
+            <div className="text-right">
+              <div className="text-[10px] uppercase tracking-wider opacity-70">Conectada em</div>
+              <div className="text-xs">{sp.connectedAt ? new Date(sp.connectedAt).toLocaleDateString("pt-BR") : "—"}</div>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="mt-4 rounded-2xl border-2 border-dashed border-warning/50 bg-warning/5 p-5 text-center">
+          <div className="text-3xl">🔒</div>
+          <div className="mt-2 font-serif text-lg">Conecte sua conta para começar a vender</div>
+          <p className="text-xs text-muted-foreground">Sem conta conectada, os clientes não conseguem comprar créditos.</p>
+        </div>
+      )}
+
+      {/* Ledger */}
+      <div className="mt-4 rounded-2xl bg-secondary p-4">
+        <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Repasses do dia</div>
+        <div className="mt-2 grid gap-2 text-sm">
+          <div className="flex justify-between"><span>Bruto vendido</span><span className="font-display">R$ {totalSold.toLocaleString("pt-BR")}</span></div>
+          <div className="flex justify-between text-muted-foreground"><span>Taxa FestaCash ({(fee * 100).toFixed(1)}%)</span><span>− R$ {platformCut.toLocaleString("pt-BR")}</span></div>
+          <div className="border-t border-border pt-2 flex justify-between font-semibold"><span>Vai pra você</span><span className="font-display text-success">R$ {yourCut.toLocaleString("pt-BR")}</span></div>
+        </div>
+        <div className="mt-3 text-[11px] text-muted-foreground">Cada transação é repassada na hora pelo Mercado Pago. Você acompanha tudo no extrato MP.</div>
+      </div>
+
+      <div className="mt-4 flex flex-wrap gap-2">
+        <button
+          onClick={() => { setForm({ holder: sp.holder, document: sp.document, email: sp.email }); setOpen(true); }}
+          className="rounded-full bg-foreground px-4 py-2 text-xs font-semibold text-background"
+        >
+          {connected ? "Trocar conta" : "Conectar Mercado Pago"}
+        </button>
+        {connected && (
+          <button
+            onClick={() => { if (confirm("Desconectar conta? Vendas ficarão pausadas.")) disconnectSplit(); }}
+            className="rounded-full border border-destructive/40 px-4 py-2 text-xs font-semibold text-destructive"
+          >
+            Desconectar
+          </button>
+        )}
+        <a
+          href="https://www.mercadopago.com.br/developers/pt/docs/split-payments"
+          target="_blank" rel="noreferrer"
+          className="rounded-full border border-border px-4 py-2 text-xs font-semibold"
+        >
+          Como funciona o split ↗
+        </a>
+      </div>
+
+      {open && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-foreground/40 p-4" onClick={() => setOpen(false)}>
+          <div onClick={(e) => e.stopPropagation()} className="w-full max-w-md rounded-3xl border-2 border-foreground bg-card p-6 shadow-pop">
+            <h3 className="font-serif text-2xl">Conectar Mercado Pago</h3>
+            <p className="text-xs text-muted-foreground">Em produção isto abre o OAuth do MP. Aqui é só simulação.</p>
+            <div className="mt-4 grid gap-3">
+              <Field label="Titular / Razão social">
+                <input value={form.holder} onChange={(e) => setForm({ ...form, holder: e.target.value })} className="input" placeholder="Ex.: Escola Sagrado Coração Ltda" />
+              </Field>
+              <Field label="CNPJ ou CPF">
+                <input value={form.document} onChange={(e) => setForm({ ...form, document: e.target.value })} className="input" placeholder="00.000.000/0001-00" />
+              </Field>
+              <Field label="Email da conta MP">
+                <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="input" placeholder="financeiro@org.com.br" />
+              </Field>
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <button onClick={() => setOpen(false)} className="rounded-full border border-border px-4 py-2 text-sm font-semibold">Cancelar</button>
+              <button
+                disabled={!form.holder.trim() || !form.email.trim()}
+                onClick={() => { connectSplit(form); setOpen(false); }}
+                className="rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground shadow-pop disabled:opacity-50"
+              >
+                Conectar
+              </button>
+            </div>
+            <style>{`.input{width:100%;border-radius:0.75rem;border:1px solid var(--border);background:var(--background);padding:0.6rem 0.85rem;font-size:0.875rem;outline:none}.input:focus{box-shadow:0 0 0 2px var(--ring)}`}</style>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

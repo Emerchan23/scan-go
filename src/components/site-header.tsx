@@ -6,6 +6,7 @@ const items = [
   { to: "/cliente", label: "Cliente" },
   { to: "/barraca", label: "Barraca" },
   { to: "/admin", label: "Admin" },
+  { to: "/folder", label: "Folders" },
   { to: "/owner", label: "Owner" },
 ];
 

@@ -141,7 +141,51 @@ export type RefundLog = {
   via: "direct" | "approved";
 };
 
-const KEY = "festacash:v5";
+const KEY = "festacash:v7";
+
+/** Notificação interna do app — sino do cliente / admin. */
+export type NotificationAudience = "client" | "admin" | "all";
+export type NotificationKind = "info" | "warn" | "danger" | "success";
+export type Notification = {
+  id: string;
+  at: number;
+  audience: NotificationAudience;
+  kind: NotificationKind;
+  title: string;
+  body?: string;
+  /** Quem leu (set de "client" e/ou staff id). */
+  readBy: string[];
+  /** Pra notificações de "filho gastou" — dono do saldo (user.name). */
+  forUser?: string;
+};
+
+/** Evento da organização — multi-evento. */
+export type FestaEvent = {
+  id: string;
+  name: string;
+  date: string;
+  org: string;
+  status: "active" | "archived";
+  createdAt: number;
+  archivedAt?: number;
+};
+
+/** Turno do caixa — abertura/fechamento + conferência. */
+export type CashShift = {
+  id: string;
+  staffId: string;
+  staffName: string;
+  openedAt: number;
+  closedAt?: number;
+  /** Snapshot quando fechou. */
+  totalIssued?: number;
+  walletsIssued?: number;
+  /** Valor que o operador contou na gaveta. */
+  countedCash?: number;
+  /** countedCash - totalIssued (positivo = sobra; negativo = falta). */
+  diff?: number;
+  notes?: string;
+};
 
 /** O que acontece com o saldo não usado quando o evento acaba. */
 export type CreditPolicy = {

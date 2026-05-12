@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useRef, useState } from "react";
 import { SiteHeader } from "@/components/site-header";
 import { Bunting } from "@/components/bunting";
-import { removeProduct, reset, upsertProduct, useStore, type Product, type ProductKind } from "@/lib/festa-store";
+import { removeProduct, reset, setPolicy, upsertProduct, useStore, type Product, type ProductKind } from "@/lib/festa-store";
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 export const Route = createFileRoute("/admin")({
@@ -192,19 +192,9 @@ function AdminPage() {
               ))}
             </div>
           </div>
-          <div className="rounded-3xl border border-border bg-card p-5 shadow-soft">
-            <h2 className="font-serif text-2xl">Saldo restante ao fim do evento</h2>
-            <p className="text-sm text-muted-foreground">Defina o que acontece com o crédito não usado.</p>
-            <div className="mt-4 space-y-2 text-sm">
-              {["Expira ao fim do evento", "Permitir transferência entre clientes", "Permitir doação para causa do evento", "Reembolso manual pelo organizador"].map((opt, i) => (
-                <label key={opt} className="flex items-center gap-3 rounded-xl bg-secondary px-4 py-3">
-                  <input type="checkbox" defaultChecked={i < 3} className="h-4 w-4 accent-[oklch(0.62_0.21_35)]" />
-                  {opt}
-                </label>
-              ))}
-            </div>
-          </div>
+          <PolicyCard />
         </div>
+        <PolicyExplainer />
 
         {/* Catálogo / produtos */}
         <CatalogManager />

@@ -395,7 +395,23 @@ export function issueWallet(opts: { holder?: string; amount: number; issuedBy: s
   return w;
 }
 
-export function findWallet(code: string): Wallet | undefined {
+/**
+ * Cliente converte parte do saldo digital em uma ficha offline (carteira própria).
+ * Útil pra usar a ficha sem internet na festa, emprestar, etc.
+ */
+export function convertBalanceToWallet(opts: { amount: number; passphrase?: string }): Wallet {
+  const s = read();
+  if (opts.amount <= 0) throw new Error("Valor inválido");
+  if (opts.amount > s.user.balance) throw new Error("Saldo insuficiente");
+  s.user.balance -= opts.amount;
+  write(s);
+  return issueWallet({
+    holder: s.user.name || undefined,
+    amount: opts.amount,
+    issuedBy: `Cliente: ${s.user.name || "anônimo"}`,
+    passphrase: opts.passphrase,
+  });
+}
   return read().wallets.find((w) => w.code.toUpperCase() === code.toUpperCase());
 }
 

@@ -20,13 +20,19 @@ const PRESETS = [10, 20, 30, 50, 75, 100];
 
 function CaixaPage() {
   const s = useStore();
+  const me = s.staff.find((x) => x.id === s.sessionStaffId);
+  const myPerms = s.roles.find((r) => r.id === me?.roleId)?.permissions ?? [];
+  const has = (p: string) => myPerms.includes("admin.full") || (myPerms as string[]).includes(p);
+  const canIssue = has("caixa.issue");
+  const canSearch = has("caixa.search_orders");
+  const [tab, setTab] = useState<"emitir" | "pedidos">("emitir");
   const [holder, setHolder] = useState("");
   const [amount, setAmount] = useState(50);
   const [method, setMethod] = useState<"dinheiro" | "pix" | "credito">("dinheiro");
   const [passphrase, setPassphrase] = useState("");
   const [issued, setIssued] = useState<Wallet | null>(null);
   const [issueError, setIssueError] = useState<string | null>(null);
-  const operator = "Bilheteria";
+  const operator = me?.name ?? "Bilheteria";
 
   const todays = useMemo(
     () =>

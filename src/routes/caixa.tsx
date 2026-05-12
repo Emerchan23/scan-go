@@ -113,7 +113,7 @@ function CaixaPage() {
         )}
 
         {/* Telão da ficha emitida */}
-        {issued && (
+        {tab === "emitir" && canIssue && issued && (
           <Receipt
             wallet={issued}
             event={s.event}

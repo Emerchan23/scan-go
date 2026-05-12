@@ -12,6 +12,15 @@ export const Route = createFileRoute("/caixa")({
     meta: [
       { title: "Caixa — FestaCash" },
       { name: "description", content: "Bilheteria da festa: receba dinheiro/Pix e emita uma fichinha com QR Code de crédito pra usar nas barracas." },
+      { name: "theme-color", content: "#a76b00" },
+      { name: "apple-mobile-web-app-title", content: "Caixa" },
+      { name: "apple-mobile-web-app-capable", content: "yes" },
+      { name: "mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
+    ],
+    links: [
+      { rel: "manifest", href: "/caixa.webmanifest" },
+      { rel: "apple-touch-icon", href: "/icon.svg" },
     ],
   }),
   component: CaixaPage,

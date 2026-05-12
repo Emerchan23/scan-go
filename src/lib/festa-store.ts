@@ -38,6 +38,13 @@ export type Wallet = {
   issuedBy: string;
   /** Histórico de débitos no PDV. */
   consumed: number;
+  /**
+   * Palavra-chave (segredo) que o cliente combina no caixa. Se definida,
+   * a barraca SÓ debita após o atendente conferir verbalmente. Defesa
+   * contra alguém fotografar o QR e tentar usar a ficha.
+   * Guardada em maiúsculas/normalizada — comparação case-insensitive.
+   */
+  passphrase?: string;
 };
 
 export type Sale = { id: string; productId: string; product: string; price: number; barraca: string; at: number; user: string };

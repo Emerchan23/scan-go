@@ -148,6 +148,24 @@ export function removeProduct(id: string) {
   write(s);
 }
 
+export function setPolicy(patch: Partial<CreditPolicy>) {
+  const s = read();
+  s.policy = { ...s.policy, ...patch };
+  write(s);
+}
+
+export function requestRefund() {
+  const s = read();
+  if (s.user.balance <= 0) throw new Error("Sem saldo para reembolsar");
+  if (s.policy.mode !== "refund") throw new Error("Reembolso não disponível");
+  const deadline = s.policy.endsAt + s.policy.refundDays * 86_400_000;
+  if (Date.now() > deadline) throw new Error("Prazo de reembolso encerrado");
+  const amount = s.user.balance;
+  s.user.balance = 0;
+  write(s);
+  return amount;
+}
+
 export function reset() {
   if (typeof window !== "undefined") localStorage.removeItem(KEY);
   write(initial);

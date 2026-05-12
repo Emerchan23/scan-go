@@ -14,7 +14,35 @@ export type Product = {
   image?: string;
   description?: string;
   durationMin?: number;
+  /** Estoque inicial disponível (unidades). undefined = sem controle. */
   stock?: number;
+  /** Limite a partir do qual aparece "acabando". Default = 10. */
+  stockAlert?: number;
+};
+
+/** Histórico de reposições de estoque feitas pelo admin/caixa. */
+export type StockMovement = {
+  id: string;
+  productId: string;
+  qty: number;            // positivo = entrada, negativo = ajuste
+  by: string;
+  at: number;
+  note?: string;
+};
+
+/** Como o cliente vê disponibilidade no catálogo. */
+export type StockVisibility = "off" | "esgotado" | "acabando";
+
+/** Estado de vendas — kill switch em 2 estágios. */
+export type SalesStatus = {
+  /** Recargas (cliente comprar crédito) e emissão de ficha pelo caixa. */
+  topUps: "open" | "closed";
+  /** Cobranças nas barracas. */
+  charges: "open" | "closed";
+  /** Quando charges=closed, fichas offline já emitidas continuam debitando? */
+  walletsActiveAfterClose: boolean;
+  closedAt?: number;
+  topUpsClosedAt?: number;
 };
 
 /** Barraca cadastrada pelo organizador. */
@@ -161,9 +189,13 @@ type State = {
   refundLogs: RefundLog[];
   /** Sessão atual (staff logado) — id ou null. */
   sessionStaffId: string | null;
+  salesStatus: SalesStatus;
+  stockMoves: StockMovement[];
+  /** O quanto o cliente vê de estoque no catálogo. */
+  clientStockVisibility: StockVisibility;
 };
 
-const KEY_BUMP = "v5";
+const KEY_BUMP = "v6";
 void KEY_BUMP;
 
 const builtInRoles: Role[] = [
@@ -202,14 +234,14 @@ const initial: State = {
     connectedAt: Date.now() - 2 * 86_400_000,
   },
   products: [
-    { id: "p1", name: "Espetinho de carne", price: 12, emoji: "🍢", barraca: "Churrasquinho", kind: "comida", description: "Carne bovina temperada na brasa, com farofa.", stock: 80 },
-    { id: "p2", name: "Pastel de queijo", price: 10, emoji: "🥟", barraca: "Pastelaria", kind: "comida", description: "Massa crocante recém-frita." , stock: 60 },
-    { id: "p3", name: "Pé-de-moleque", price: 5, emoji: "🥜", barraca: "Doces", kind: "doce", description: "Tradicional, feito na hora." },
-    { id: "p4", name: "Quentão (250ml)", price: 8, emoji: "🍷", barraca: "Bebidas", kind: "bebida", description: "Gengibre, cravo e canela." },
-    { id: "p5", name: "Refrigerante lata", price: 7, emoji: "🥤", barraca: "Bebidas", kind: "bebida" },
-    { id: "p6", name: "Milho cozido", price: 6, emoji: "🌽", barraca: "Milho", kind: "comida" },
-    { id: "p7", name: "Canjica", price: 9, emoji: "🥣", barraca: "Doces", kind: "doce" },
-    { id: "p8", name: "Cachorro-quente", price: 14, emoji: "🌭", barraca: "Lanches", kind: "comida" },
+    { id: "p1", name: "Espetinho de carne", price: 12, emoji: "🍢", barraca: "Churrasquinho", kind: "comida", description: "Carne bovina temperada na brasa, com farofa.", stock: 80, stockAlert: 15 },
+    { id: "p2", name: "Pastel de queijo", price: 10, emoji: "🥟", barraca: "Pastelaria", kind: "comida", description: "Massa crocante recém-frita." , stock: 60, stockAlert: 10 },
+    { id: "p3", name: "Pé-de-moleque", price: 5, emoji: "🥜", barraca: "Doces", kind: "doce", description: "Tradicional, feito na hora.", stock: 40, stockAlert: 8 },
+    { id: "p4", name: "Quentão (250ml)", price: 8, emoji: "🍷", barraca: "Bebidas", kind: "bebida", description: "Gengibre, cravo e canela.", stock: 50, stockAlert: 10 },
+    { id: "p5", name: "Refrigerante lata", price: 7, emoji: "🥤", barraca: "Bebidas", kind: "bebida", stock: 120, stockAlert: 24 },
+    { id: "p6", name: "Milho cozido", price: 6, emoji: "🌽", barraca: "Milho", kind: "comida", stock: 30, stockAlert: 6 },
+    { id: "p7", name: "Canjica", price: 9, emoji: "🥣", barraca: "Doces", kind: "doce", stock: 25, stockAlert: 5 },
+    { id: "p8", name: "Cachorro-quente", price: 14, emoji: "🌭", barraca: "Lanches", kind: "comida", stock: 40, stockAlert: 8 },
     { id: "b1", name: "Cama elástica", price: 15, emoji: "🤸", barraca: "Brinquedos", kind: "brinquedo", durationMin: 10, description: "10 minutos de pulo livre na cama elástica gigante." },
     { id: "b2", name: "Touro mecânico", price: 20, emoji: "🐂", barraca: "Brinquedos", kind: "brinquedo", durationMin: 5, description: "5 minutos no touro — quem aguenta?" },
     { id: "b3", name: "Pintura facial", price: 10, emoji: "🎨", barraca: "Brinquedos", kind: "ingresso", description: "Uma sessão de pintura facial temática." },
@@ -235,6 +267,9 @@ const initial: State = {
   refundRequests: [],
   refundLogs: [],
   sessionStaffId: null,
+  salesStatus: { topUps: "open", charges: "open", walletsActiveAfterClose: true },
+  stockMoves: [],
+  clientStockVisibility: "esgotado",
 };
 
 function read(): State {
@@ -258,6 +293,7 @@ export function getState() { return read(); }
 
 export function addCredits(amount: number, name?: string) {
   const s = read();
+  if (s.salesStatus.topUps === "closed") throw new Error("Recargas encerradas pelo organizador");
   if (name) s.user.name = name;
   s.user.balance += amount;
   write(s);
@@ -281,6 +317,18 @@ export function chargeProduct(productId: string, walletCode?: string, passphrase
   const p = s.products.find((x) => x.id === productId);
   if (!p) throw new Error("Produto não encontrado");
 
+  // Kill switch — vendas encerradas
+  if (s.salesStatus.charges === "closed") {
+    if (!walletCode || !s.salesStatus.walletsActiveAfterClose) {
+      throw new Error("Vendas encerradas pelo organizador");
+    }
+  }
+
+  // Estoque
+  if (typeof p.stock === "number" && p.stock <= 0) {
+    throw new Error(`${p.name}: esgotado`);
+  }
+
   let payerName = s.user.name;
   let newBalance: number;
 
@@ -303,6 +351,8 @@ export function chargeProduct(productId: string, walletCode?: string, passphrase
     newBalance = s.user.balance;
   }
 
+  if (typeof p.stock === "number") p.stock = Math.max(0, p.stock - 1);
+
   s.sales.unshift({
     id: "s_" + Math.random().toString(36).slice(2, 9),
     productId: p.id,
@@ -316,6 +366,65 @@ export function chargeProduct(productId: string, walletCode?: string, passphrase
   });
   write(s);
   return { product: p, balance: newBalance };
+}
+
+/* ----------------------------- Kill switch ------------------------------ */
+
+export function closeTopUps() {
+  const s = read();
+  s.salesStatus.topUps = "closed";
+  s.salesStatus.topUpsClosedAt = Date.now();
+  write(s);
+}
+
+export function closeAllSales(walletsActive: boolean) {
+  const s = read();
+  s.salesStatus.topUps = "closed";
+  s.salesStatus.charges = "closed";
+  s.salesStatus.walletsActiveAfterClose = walletsActive;
+  s.salesStatus.closedAt = Date.now();
+  if (!s.salesStatus.topUpsClosedAt) s.salesStatus.topUpsClosedAt = Date.now();
+  write(s);
+}
+
+export function reopenSales() {
+  const s = read();
+  s.salesStatus = { topUps: "open", charges: "open", walletsActiveAfterClose: true };
+  write(s);
+}
+
+/* ------------------------------ Estoque -------------------------------- */
+
+export function restockProduct(opts: { productId: string; qty: number; by: string; note?: string }) {
+  if (opts.qty === 0) throw new Error("Quantidade inválida");
+  const s = read();
+  const p = s.products.find((x) => x.id === opts.productId);
+  if (!p) throw new Error("Produto não encontrado");
+  p.stock = Math.max(0, (p.stock ?? 0) + opts.qty);
+  s.stockMoves.unshift({
+    id: "sm_" + Math.random().toString(36).slice(2, 9),
+    productId: p.id,
+    qty: opts.qty,
+    by: opts.by,
+    at: Date.now(),
+    note: opts.note?.trim() || undefined,
+  });
+  write(s);
+}
+
+export function setClientStockVisibility(v: StockVisibility) {
+  const s = read();
+  s.clientStockVisibility = v;
+  write(s);
+}
+
+/** Status de estoque para UI. */
+export function stockStatus(p: Product): "ok" | "low" | "out" | "untracked" {
+  if (typeof p.stock !== "number") return "untracked";
+  if (p.stock <= 0) return "out";
+  const alert = p.stockAlert ?? 10;
+  if (p.stock <= alert) return "low";
+  return "ok";
 }
 
 /** Verifica código + palavra-chave. Usado no PDV antes de montar o pedido. */
@@ -379,6 +488,7 @@ export function issueWallet(opts: { holder?: string; amount: number; issuedBy: s
   const pass = opts.passphrase?.trim();
   if (pass && pass.length < 3) throw new Error("Palavra-chave muito curta (mín. 3 caracteres)");
   const s = read();
+  if (s.salesStatus.topUps === "closed") throw new Error("Recargas encerradas — não é possível emitir novas fichas");
   let code = genWalletCode();
   while (s.wallets.find((w) => w.code === code)) code = genWalletCode();
   const w: Wallet = {

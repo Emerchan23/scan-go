@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { QRCodeSVG } from "qrcode.react";
 import { AlertTriangle, Bell, ChevronRight, Clock, History, Home, Info, Plus, QrCode as QrIcon, Search, Send, ShoppingBag } from "lucide-react";
 
-import { addCredits, convertBalanceToWallet, requestRefund, transfer, useStore, type Product, type ProductKind, type Wallet } from "@/lib/festa-store";
+import { addCredits, convertBalanceToWallet, requestRefund, stockStatus, transfer, useStore, type Product, type ProductKind, type Wallet } from "@/lib/festa-store";
 import { InstallPrompt } from "@/components/install-prompt";
 import { Receipt as WalletReceipt, PrintStyles } from "@/routes/caixa";
 import { WifiOff, Download as DownloadIcon } from "lucide-react";
@@ -114,6 +114,7 @@ function HomeView({ onTab, onTransfer, onToast }: { onTab: (t: Tab) => void; onT
     <div>
       <WalletCard />
 
+      <SalesStatusBanner />
       <PolicyBanner onAction={onToast} />
 
       {/* Quick actions */}
@@ -359,24 +360,62 @@ function CatalogView({ onTab }: { onTab: (t: Tab) => void }) {
 }
 
 function CatalogCard({ p }: { p: Product }) {
+  const s = useStore();
+  const vis = s.clientStockVisibility;
+  const st = stockStatus(p);
+  const showOut = vis !== "off" && st === "out";
+  const showLow = vis === "acabando" && st === "low";
+
   return (
-    <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-soft">
+    <div className={`overflow-hidden rounded-2xl border border-border bg-card shadow-soft ${showOut ? "opacity-60" : ""}`}>
       <div className="relative aspect-[4/3] w-full bg-paper">
         {p.image ? (
-          <img src={p.image} alt={p.name} loading="lazy" className="h-full w-full object-cover" />
+          <img src={p.image} alt={p.name} loading="lazy" className={`h-full w-full object-cover ${showOut ? "grayscale" : ""}`} />
         ) : (
           <div className="grid h-full w-full place-items-center bg-gradient-to-br from-secondary to-accent/40 text-5xl">{p.emoji}</div>
         )}
         {p.durationMin ? (
           <span className="absolute right-2 top-2 rounded-full bg-foreground/90 px-2 py-0.5 text-[10px] font-semibold text-background">⏱ {p.durationMin}min</span>
         ) : null}
+        {showOut && (
+          <span className="absolute left-2 top-2 rounded-full bg-destructive px-2 py-0.5 text-[10px] font-bold text-destructive-foreground">Esgotado</span>
+        )}
+        {showLow && (
+          <span className="absolute left-2 top-2 rounded-full bg-warning px-2 py-0.5 text-[10px] font-bold text-background">Últimas {p.stock}</span>
+        )}
       </div>
       <div className="p-3">
-        <div className="font-serif text-sm leading-tight line-clamp-1">{p.name}</div>
+        <div className={`font-serif text-sm leading-tight line-clamp-1 ${showOut ? "line-through" : ""}`}>{p.name}</div>
         <div className="mt-0.5 flex items-center justify-between">
           <span className="text-[10px] text-muted-foreground line-clamp-1">{p.barraca}</span>
           <span className="font-display text-primary text-base">R${p.price}</span>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function SalesStatusBanner() {
+  const s = useStore();
+  const ss = s.salesStatus;
+  if (ss.topUps === "open" && ss.charges === "open") return null;
+  if (ss.charges === "closed") {
+    return (
+      <div className="mt-4 flex items-start gap-3 rounded-2xl border-2 border-destructive/40 bg-destructive/10 p-3.5 text-sm">
+        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+        <div>
+          <div className="font-semibold text-destructive">Vendas encerradas pelo organizador</div>
+          <div className="text-xs text-foreground/70">As barracas não estão mais cobrando{ss.walletsActiveAfterClose ? " do saldo digital — fichas físicas ainda valem." : "."}</div>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="mt-4 flex items-start gap-3 rounded-2xl border-2 border-warning/40 bg-warning/10 p-3.5 text-sm">
+      <Clock className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
+      <div>
+        <div className="font-semibold text-warning">Recargas encerradas</div>
+        <div className="text-xs text-foreground/70">Você ainda pode gastar o saldo nas barracas, mas não dá pra adicionar mais crédito.</div>
       </div>
     </div>
   );
@@ -698,11 +737,11 @@ function BuyView({ onDone }: { onDone: (m: string) => void }) {
       </div>
 
       <button
-        disabled={!name.trim() || loading || s.split.status !== "connected"}
+        disabled={!name.trim() || loading || s.split.status !== "connected" || s.salesStatus.topUps === "closed"}
         onClick={buy}
         className="mt-4 w-full rounded-full bg-primary py-3.5 font-semibold text-primary-foreground shadow-pop active:scale-[0.98] transition disabled:opacity-50"
       >
-        {loading ? "Processando..." : s.split.status !== "connected" ? "Organizador não conectou conta" : `Pagar R$ ${amount},00`}
+        {loading ? "Processando..." : s.salesStatus.topUps === "closed" ? "Recargas encerradas" : s.split.status !== "connected" ? "Organizador não conectou conta" : `Pagar R$ ${amount},00`}
       </button>
       <p className="mt-2 text-center text-[11px] text-muted-foreground">Pagamento seguro · split automático Mercado Pago</p>
     </div>

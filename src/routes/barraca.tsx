@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Check, ChevronLeft, Minus, Plus, ScanLine, Search, Trash2, X } from "lucide-react";
 import { InstallPrompt } from "@/components/install-prompt";
-import { chargeProduct, useStore, verifyWalletAccess, type Barraca, type Product, type Wallet } from "@/lib/festa-store";
+import { chargeProduct, stockStatus, useStore, verifyWalletAccess, type Barraca, type Product, type Wallet } from "@/lib/festa-store";
 
 const BARRACA_KEY = "festacash:current-barraca";
 
@@ -95,6 +95,14 @@ function BarracaApp() {
   const add = (p: Product) => {
     if (!scanned && !ficha) {
       setError("Escaneie o QR do cliente ou valide a fichinha primeiro");
+      return;
+    }
+    if (s.salesStatus.charges === "closed" && (!ficha || !s.salesStatus.walletsActiveAfterClose)) {
+      setError("Vendas encerradas pelo organizador");
+      return;
+    }
+    if (typeof p.stock === "number" && p.stock <= 0) {
+      setError(`${p.name} esgotou`);
       return;
     }
     setCart((c) => {
@@ -293,6 +301,16 @@ function BarracaApp() {
               Esta barraca ainda não tem produtos liberados. Peça pro organizador atribuir itens em <span className="font-semibold">Admin → Barracas</span>.
             </div>
           )}
+          {s.salesStatus.charges === "closed" && (
+            <div className="mt-3 rounded-2xl border-2 border-destructive/50 bg-destructive/10 p-3 text-xs text-destructive">
+              <b>Vendas encerradas.</b> {s.salesStatus.walletsActiveAfterClose ? "Só fichas físicas continuam debitando." : "Bloqueado para qualquer pagamento."}
+            </div>
+          )}
+          {s.salesStatus.charges === "open" && s.salesStatus.topUps === "closed" && (
+            <div className="mt-3 rounded-2xl border border-warning/40 bg-warning/5 p-3 text-xs text-foreground/70">
+              ⏸ Recargas encerradas — clientes só podem gastar saldo já comprado.
+            </div>
+          )}
         </div>
 
         {/* Products grid */}
@@ -300,16 +318,19 @@ function BarracaApp() {
           <div className="grid grid-cols-2 gap-3">
             {list.map((p) => {
               const inCart = cart.find((c) => c.product.id === p.id);
+              const st = stockStatus(p);
+              const out = st === "out";
               return (
                 <motion.button
                   key={p.id}
-                  whileTap={{ scale: 0.96 }}
+                  whileTap={out ? undefined : { scale: 0.96 }}
                   onClick={() => add(p)}
-                  className="group relative overflow-hidden rounded-2xl border border-border bg-card text-left shadow-soft active:border-foreground"
+                  disabled={out}
+                  className={`group relative overflow-hidden rounded-2xl border border-border bg-card text-left shadow-soft active:border-foreground ${out ? "opacity-60 cursor-not-allowed" : ""}`}
                 >
                   <div className="relative aspect-[4/3] w-full bg-paper">
                     {p.image ? (
-                      <img src={p.image} alt={p.name} className="h-full w-full object-cover" />
+                      <img src={p.image} alt={p.name} className={`h-full w-full object-cover ${out ? "grayscale" : ""}`} />
                     ) : (
                       <div className="grid h-full w-full place-items-center text-5xl">{p.emoji}</div>
                     )}
@@ -321,9 +342,15 @@ function BarracaApp() {
                         {inCart.qty}
                       </span>
                     )}
+                    {out && (
+                      <span className="absolute inset-x-2 bottom-2 rounded-full bg-destructive px-2 py-0.5 text-center text-[10px] font-bold text-destructive-foreground">Esgotado</span>
+                    )}
+                    {st === "low" && !out && (
+                      <span className="absolute right-2 bottom-2 rounded-full bg-warning px-2 py-0.5 text-[10px] font-bold text-background">Restam {p.stock}</span>
+                    )}
                   </div>
                   <div className="p-3">
-                    <div className="font-serif text-sm leading-tight line-clamp-1">{p.name}</div>
+                    <div className={`font-serif text-sm leading-tight line-clamp-1 ${out ? "line-through" : ""}`}>{p.name}</div>
                     <div className="mt-0.5 flex items-center justify-between">
                       <span className="text-[10px] text-muted-foreground line-clamp-1">{p.barraca}</span>
                       <span className="font-display text-primary text-sm">R${p.price}</span>

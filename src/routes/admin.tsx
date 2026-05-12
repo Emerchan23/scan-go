@@ -787,3 +787,93 @@ function BarracaDialog({
     </div>
   );
 }
+
+function RefundsApprovalSection() {
+  const s = useStore();
+  const me = s.staff.find((x) => x.id === s.sessionStaffId);
+  const myPerms = s.roles.find((r) => r.id === me?.roleId)?.permissions ?? [];
+  const canApprove = myPerms.includes("admin.full") || myPerms.includes("refund.approve");
+  const pending = s.refundRequests.filter((r) => r.status === "pending");
+  const history = s.refundRequests.filter((r) => r.status !== "pending").slice(0, 8);
+  const [note, setNote] = useState<Record<string, string>>({});
+
+  return (
+    <section className="mt-8 rounded-3xl border-2 border-warning/40 bg-card p-5 shadow-soft">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div>
+          <h2 className="font-serif text-2xl">Solicitações de reembolso</h2>
+          <p className="text-sm text-muted-foreground">Aprovações abertas pelo Caixa. Aprovar devolve o saldo na hora.</p>
+        </div>
+        <span className="rounded-full bg-warning/15 px-3 py-1 text-xs font-semibold text-warning">{pending.length} pendente(s)</span>
+      </div>
+
+      {!canApprove && (
+        <div className="mt-3 rounded-xl border border-dashed border-border bg-secondary/50 p-3 text-xs text-muted-foreground">
+          Você está visualizando — só perfis com <code>refund.approve</code> podem decidir.
+        </div>
+      )}
+
+      {pending.length === 0 ? (
+        <p className="mt-4 text-sm text-muted-foreground">Nenhuma solicitação pendente.</p>
+      ) : (
+        <ul className="mt-4 space-y-3">
+          {pending.map((r) => {
+            const sale = s.sales.find((x) => x.id === r.saleId);
+            return (
+              <li key={r.id} className="rounded-2xl border border-border bg-background p-4">
+                <div className="flex items-start justify-between gap-3 flex-wrap">
+                  <div className="min-w-0">
+                    <div className="font-serif text-lg">R$ {r.amount} · {sale?.product ?? "—"}</div>
+                    <div className="text-xs text-muted-foreground">
+                      Venda <code className="font-mono">{r.saleId.slice(-6).toUpperCase()}</code>
+                      {r.walletCode && <> · Ficha <code className="font-mono">{r.walletCode}</code></>}
+                      · Solicitado por <b>{r.requestedBy}</b> {new Date(r.requestedAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+                    </div>
+                    <div className="mt-2 rounded-xl bg-secondary p-2.5 text-sm"><b>Motivo:</b> {r.reason}</div>
+                  </div>
+                </div>
+                {canApprove && (
+                  <div className="mt-3 flex gap-2 flex-wrap">
+                    <input
+                      placeholder="Nota da decisão (opcional)"
+                      value={note[r.id] ?? ""}
+                      onChange={(e) => setNote((p) => ({ ...p, [r.id]: e.target.value }))}
+                      className="flex-1 min-w-[180px] rounded-xl border border-border bg-background px-3 py-2 text-xs"
+                    />
+                    <button
+                      onClick={() => { try { decideRefundRequest(r.id, true, me!.name, note[r.id]); } catch (e: any) { alert(e.message); } }}
+                      className="rounded-full bg-success px-4 py-2 text-xs font-semibold text-success-foreground"
+                    >Aprovar e estornar</button>
+                    <button
+                      onClick={() => { try { decideRefundRequest(r.id, false, me!.name, note[r.id]); } catch (e: any) { alert(e.message); } }}
+                      className="rounded-full border border-destructive/40 px-4 py-2 text-xs font-semibold text-destructive"
+                    >Negar</button>
+                  </div>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
+      {history.length > 0 && (
+        <details className="mt-5">
+          <summary className="cursor-pointer text-sm font-semibold">Histórico recente ({history.length})</summary>
+          <ul className="mt-2 space-y-1 text-xs">
+            {history.map((r) => (
+              <li key={r.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-secondary/50 px-3 py-2">
+                <span>
+                  <span className={`mr-2 rounded-full px-2 py-0.5 text-[10px] font-semibold ${r.status === "approved" ? "bg-success/20 text-success" : "bg-destructive/20 text-destructive"}`}>
+                    {r.status === "approved" ? "aprovado" : "negado"}
+                  </span>
+                  R$ {r.amount} · {r.requestedBy} → {r.decidedBy}
+                </span>
+                <span className="text-muted-foreground">{r.reason}</span>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+    </section>
+  );
+}

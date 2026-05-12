@@ -200,6 +200,9 @@ function OwnerPage() {
           </div>
         </div>
 
+        {/* Monetização & Split */}
+        <SplitSection tenants={TENANTS} />
+
         {/* Bottom row: plans + activity + system health */}
         <div className="mt-8 grid gap-4 lg:grid-cols-3">
           <div className="rounded-3xl border border-border bg-card p-5 shadow-soft">

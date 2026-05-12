@@ -19,7 +19,7 @@ type CartItem = { product: Product; qty: number };
 
 function BarracaApp() {
   const s = useStore();
-  const [now, setNow] = useState(() => new Date());
+  // (status bar removido — UX nativa de PWA)
   const [scanned, setScanned] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [filter, setFilter] = useState("Todos");

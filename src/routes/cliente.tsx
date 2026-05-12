@@ -474,7 +474,138 @@ function QrView() {
           </div>
         ))}
       </div>
+
+      <OfflineWalletCard />
     </div>
+  );
+}
+
+/* ----------------------- Carteira offline (cliente) -------------------- */
+
+function OfflineWalletCard() {
+  const s = useStore();
+  const [open, setOpen] = useState(false);
+  const [amount, setAmount] = useState(0);
+  const [passphrase, setPassphrase] = useState("");
+  const [err, setErr] = useState<string | null>(null);
+  const [issued, setIssued] = useState<Wallet | null>(null);
+
+  const max = s.user.balance;
+
+  const generate = () => {
+    setErr(null);
+    try {
+      const w = convertBalanceToWallet({ amount, passphrase: passphrase || undefined });
+      setIssued(w);
+    } catch (e: any) { setErr(e?.message ?? "Erro"); }
+  };
+
+  const reset = () => { setIssued(null); setAmount(0); setPassphrase(""); setErr(null); setOpen(false); };
+
+  return (
+    <>
+      <motion.button
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        onClick={() => setOpen(true)}
+        disabled={max <= 0}
+        className="mt-4 flex w-full items-center gap-3 rounded-2xl border-2 border-dashed border-foreground/40 bg-card p-4 text-left shadow-soft active:scale-[0.99] disabled:opacity-50"
+      >
+        <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-foreground text-background"><WifiOff className="h-5 w-5" /></span>
+        <div className="min-w-0 flex-1">
+          <div className="font-serif text-base leading-tight">Salvar carteira offline</div>
+          <div className="text-[11px] text-muted-foreground">Gere uma ficha em PDF com QR Code pra usar na festa mesmo sem internet.</div>
+        </div>
+        <ChevronRight className="h-5 w-5 text-muted-foreground" />
+      </motion.button>
+
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 grid place-items-end bg-foreground/40 sm:place-items-center"
+            onClick={reset}
+          >
+            <motion.div
+              initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 40, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-2xl max-h-[92vh] overflow-y-auto rounded-t-3xl border-2 border-foreground bg-card p-6 shadow-pop sm:rounded-3xl"
+            >
+              {!issued ? (
+                <>
+                  <div className="flex items-center gap-3">
+                    <span className="grid h-12 w-12 place-items-center rounded-2xl bg-primary text-primary-foreground"><WifiOff className="h-6 w-6" /></span>
+                    <div>
+                      <h3 className="font-serif text-2xl leading-tight">Gerar ficha offline</h3>
+                      <p className="text-xs text-muted-foreground">Você converte parte do saldo digital em uma ficha com QR — vale como dinheiro nas barracas, sem precisar de internet.</p>
+                    </div>
+                  </div>
+
+                  <div className="mt-5 rounded-2xl bg-secondary p-3 text-sm">
+                    Saldo disponível: <span className="font-display text-lg text-primary">R$ {max}</span>
+                  </div>
+
+                  <label className="mt-5 block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Valor a converter</label>
+                  <div className="mt-2 grid grid-cols-4 gap-2">
+                    {[10, 25, 50, max].filter((v, i, a) => v > 0 && v <= max && a.indexOf(v) === i).map((v) => (
+                      <button
+                        key={v}
+                        onClick={() => setAmount(v)}
+                        className={`rounded-xl border-2 py-2.5 font-display text-base ${amount === v ? "border-foreground bg-accent" : "border-border bg-background"}`}
+                      >R${v}</button>
+                    ))}
+                  </div>
+                  <input
+                    type="number" min={1} max={max}
+                    value={amount || ""}
+                    onChange={(e) => setAmount(Math.max(0, Math.min(max, Number(e.target.value) || 0)))}
+                    placeholder="0"
+                    className="mt-2 w-full rounded-xl border border-border bg-background px-4 py-3 text-center font-display text-2xl"
+                  />
+
+                  <div className="mt-5 flex items-center justify-between">
+                    <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Palavra-chave (opcional)</span>
+                    <span className="text-[10px] text-muted-foreground">🔒 anti-foto</span>
+                  </div>
+                  <input
+                    value={passphrase}
+                    onChange={(e) => setPassphrase(e.target.value.slice(0, 16))}
+                    placeholder="Ex.: PIPOCA, FORRO, 1234..."
+                    className="mt-1 w-full rounded-xl border border-border bg-background px-4 py-3 text-sm uppercase tracking-wider"
+                  />
+                  <p className="mt-1 text-[11px] text-muted-foreground leading-snug">
+                    Se você for emprestar a ficha, combine essa palavra com a pessoa. A barraca pede antes de cobrar — sem ela, foto do QR não vale.
+                  </p>
+
+                  {err && <div className="mt-3 rounded-xl border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">{err}</div>}
+
+                  <div className="mt-6 flex gap-2">
+                    <button onClick={reset} className="flex-1 rounded-full border border-border py-3 text-sm font-semibold">Cancelar</button>
+                    <button
+                      onClick={generate}
+                      disabled={amount <= 0 || amount > max}
+                      className="flex-1 inline-flex items-center justify-center gap-2 rounded-full bg-primary py-3 text-sm font-semibold text-primary-foreground shadow-pop disabled:opacity-50"
+                    >
+                      <DownloadIcon className="h-4 w-4" /> Gerar ficha de R$ {amount}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <WalletReceipt
+                  wallet={issued}
+                  event={s.event}
+                  operator={`Cliente: ${s.user.name}`}
+                  method="saldo digital"
+                  onClose={reset}
+                  onPrint={() => { if (typeof window !== "undefined") window.print(); }}
+                />
+              )}
+              <PrintStyles />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
   );
 }
 

@@ -880,3 +880,248 @@ function RefundsApprovalSection() {
     </section>
   );
 }
+
+/* ----------------------- Encerramento de vendas ----------------------- */
+
+function SalesControlCard() {
+  const s = useStore();
+  const ss = s.salesStatus;
+  const [closeAllOpen, setCloseAllOpen] = useState(false);
+  const [walletsActive, setWalletsActive] = useState(true);
+
+  const stage =
+    ss.charges === "closed" ? "fechado-tudo" :
+    ss.topUps === "closed" ? "so-recargas" :
+    "aberto";
+
+  return (
+    <section className="mt-8 rounded-3xl border-2 border-foreground bg-card p-5 shadow-pop">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="font-serif text-2xl">Encerramento de vendas</h2>
+          <p className="text-sm text-muted-foreground">Controle em 2 estágios. Primeiro fecha as recargas (cliente gasta o que tem), depois encerra as cobranças nas barracas.</p>
+        </div>
+        <span className={`rounded-full px-3 py-1 text-[11px] font-semibold ${
+          stage === "aberto" ? "bg-success/15 text-success" :
+          stage === "so-recargas" ? "bg-warning/15 text-warning" :
+          "bg-destructive/15 text-destructive"
+        }`}>
+          {stage === "aberto" ? "● Vendas abertas" : stage === "so-recargas" ? "⏸ Recargas fechadas" : "■ Vendas encerradas"}
+        </span>
+      </div>
+
+      {/* Stepper */}
+      <div className="mt-5 grid gap-3 md:grid-cols-3">
+        <Stage active={stage === "aberto"} done={stage !== "aberto"} num="1" title="Tudo aberto" hint="Cliente recarrega, caixa emite ficha, barracas cobram." />
+        <Stage active={stage === "so-recargas"} done={stage === "fechado-tudo"} num="2" title="Recargas fechadas" hint="Cliente não recarrega mais. Caixa não emite novas fichas. Barracas seguem cobrando o saldo restante." />
+        <Stage active={stage === "fechado-tudo"} num="3" title="Cobranças fechadas" hint={ss.walletsActiveAfterClose ? "Fichas físicas continuam valendo." : "Tudo bloqueado, inclusive fichas físicas."} />
+      </div>
+
+      <div className="mt-5 flex flex-wrap gap-2">
+        {stage === "aberto" && (
+          <>
+            <button onClick={() => { if (confirm("Fechar recargas? Cliente não compra mais crédito e o caixa não emite novas fichas. As barracas continuam cobrando.")) closeTopUps(); }}
+              className="rounded-full bg-warning px-5 py-2.5 text-sm font-semibold text-background shadow-pop">Fechar recargas (etapa 1)</button>
+            <button onClick={() => setCloseAllOpen(true)}
+              className="rounded-full bg-destructive px-5 py-2.5 text-sm font-semibold text-destructive-foreground shadow-pop">Encerrar tudo agora</button>
+          </>
+        )}
+        {stage === "so-recargas" && (
+          <>
+            <button onClick={() => setCloseAllOpen(true)}
+              className="rounded-full bg-destructive px-5 py-2.5 text-sm font-semibold text-destructive-foreground shadow-pop">Fechar cobranças (etapa 2)</button>
+            <button onClick={() => reopenSales()} className="rounded-full border border-border px-5 py-2.5 text-sm font-semibold">Reabrir vendas</button>
+          </>
+        )}
+        {stage === "fechado-tudo" && (
+          <button onClick={() => { if (confirm("Reabrir todas as vendas?")) reopenSales(); }} className="rounded-full bg-foreground px-5 py-2.5 text-sm font-semibold text-background">Reabrir vendas</button>
+        )}
+      </div>
+
+      {ss.topUpsClosedAt && (
+        <p className="mt-3 text-[11px] text-muted-foreground">Recargas fechadas em {new Date(ss.topUpsClosedAt).toLocaleString("pt-BR")}{ss.closedAt && ` · cobranças em ${new Date(ss.closedAt).toLocaleString("pt-BR")}`}.</p>
+      )}
+
+      {closeAllOpen && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-foreground/40 p-4" onClick={() => setCloseAllOpen(false)}>
+          <div onClick={(e) => e.stopPropagation()} className="w-full max-w-md rounded-3xl border-2 border-foreground bg-card p-6 shadow-pop">
+            <h3 className="font-serif text-2xl">Encerrar cobranças</h3>
+            <p className="mt-1 text-sm text-muted-foreground">As barracas vão parar de cobrar imediatamente.</p>
+
+            <div className="mt-5 space-y-2">
+              <label className={`flex cursor-pointer items-start gap-3 rounded-2xl border-2 p-4 ${walletsActive ? "border-foreground bg-accent/40" : "border-border bg-background"}`}>
+                <input type="radio" checked={walletsActive} onChange={() => setWalletsActive(true)} className="mt-1" />
+                <div>
+                  <div className="font-serif text-base">Manter fichas físicas ativas</div>
+                  <div className="text-[11px] text-muted-foreground">Quem já tem ficha de papel na mão consegue gastar até zerar. Recomendado.</div>
+                </div>
+              </label>
+              <label className={`flex cursor-pointer items-start gap-3 rounded-2xl border-2 p-4 ${!walletsActive ? "border-destructive bg-destructive/5" : "border-border bg-background"}`}>
+                <input type="radio" checked={!walletsActive} onChange={() => setWalletsActive(false)} className="mt-1" />
+                <div>
+                  <div className="font-serif text-base">Bloquear tudo, inclusive fichas</div>
+                  <div className="text-[11px] text-muted-foreground">Ninguém compra nada. Saldo de fichas vira reembolso conforme política.</div>
+                </div>
+              </label>
+            </div>
+
+            <div className="mt-6 flex justify-end gap-2">
+              <button onClick={() => setCloseAllOpen(false)} className="rounded-full border border-border px-4 py-2 text-sm font-semibold">Cancelar</button>
+              <button onClick={() => { closeAllSales(walletsActive); setCloseAllOpen(false); }} className="rounded-full bg-destructive px-5 py-2 text-sm font-semibold text-destructive-foreground shadow-pop">Confirmar encerramento</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function Stage({ active, done, num, title, hint }: { active?: boolean; done?: boolean; num: string; title: string; hint: string }) {
+  return (
+    <div className={`rounded-2xl border-2 p-4 ${active ? "border-foreground bg-accent/40" : done ? "border-success/40 bg-success/5" : "border-border bg-background opacity-70"}`}>
+      <div className="flex items-center gap-2">
+        <span className={`grid h-6 w-6 place-items-center rounded-full text-[11px] font-bold ${active ? "bg-foreground text-background" : done ? "bg-success text-background" : "bg-secondary"}`}>{done ? "✓" : num}</span>
+        <span className="font-serif text-base">{title}</span>
+      </div>
+      <p className="mt-1 text-[11px] text-muted-foreground">{hint}</p>
+    </div>
+  );
+}
+
+/* ----------------------------- Estoque ------------------------------ */
+
+function StockManager() {
+  const s = useStore();
+  const me = s.staff.find((x) => x.id === s.sessionStaffId);
+  const tracked = s.products.filter((p) => typeof p.stock === "number");
+  const low = tracked.filter((p) => stockStatus(p) === "low");
+  const out = tracked.filter((p) => stockStatus(p) === "out");
+  const [restockId, setRestockId] = useState<string | null>(null);
+  const [qty, setQty] = useState(20);
+  const [note, setNote] = useState("");
+
+  const target = restockId ? s.products.find((p) => p.id === restockId) : null;
+
+  const visibilityOptions: { v: StockVisibility; label: string; hint: string }[] = [
+    { v: "off", label: "Cliente não vê", hint: "Descobre só ao tentar pedir" },
+    { v: "esgotado", label: "Mostrar esgotado", hint: "Item zerado aparece riscado" },
+    { v: "acabando", label: "Mostrar tudo", hint: "Esgotado + 'últimas unidades'" },
+  ];
+
+  return (
+    <section className="mt-8 rounded-3xl border border-border bg-card p-5 shadow-soft">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="font-serif text-2xl">Estoque das barracas</h2>
+          <p className="text-sm text-muted-foreground">Cada produto desconta automático a cada venda. Você é avisado quando o estoque encosta no limite de alerta.</p>
+        </div>
+        <div className="flex gap-2 text-[11px] font-semibold">
+          <span className="rounded-full bg-destructive/15 px-3 py-1 text-destructive">{out.length} esgotado(s)</span>
+          <span className="rounded-full bg-warning/15 px-3 py-1 text-warning">{low.length} acabando</span>
+        </div>
+      </div>
+
+      {/* Alertas em destaque */}
+      {(out.length + low.length) > 0 && (
+        <div className="mt-4 grid gap-2 sm:grid-cols-2">
+          {[...out, ...low].slice(0, 6).map((p) => {
+            const st = stockStatus(p);
+            return (
+              <div key={p.id} className={`flex items-center gap-3 rounded-2xl border-2 p-3 ${st === "out" ? "border-destructive bg-destructive/5" : "border-warning bg-warning/5"}`}>
+                <span className="text-2xl">{p.emoji}</span>
+                <div className="min-w-0 flex-1">
+                  <div className="truncate font-serif text-sm">{p.name}</div>
+                  <div className="text-[11px] text-muted-foreground">{p.barraca} · {p.stock ?? 0} un · alerta ≤{p.stockAlert ?? 10}</div>
+                </div>
+                <button onClick={() => { setRestockId(p.id); setQty(20); setNote(""); }} className={`rounded-full px-3 py-1.5 text-[11px] font-semibold ${st === "out" ? "bg-destructive text-destructive-foreground" : "bg-foreground text-background"}`}>Repor</button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Visibilidade pro cliente */}
+      <div className="mt-5">
+        <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">O que o cliente vê no catálogo</div>
+        <div className="mt-2 grid gap-2 sm:grid-cols-3">
+          {visibilityOptions.map((o) => {
+            const active = s.clientStockVisibility === o.v;
+            return (
+              <button key={o.v} onClick={() => setClientStockVisibility(o.v)} className={`rounded-2xl border-2 p-3 text-left ${active ? "border-foreground bg-accent/40" : "border-border bg-background"}`}>
+                <div className="font-serif text-sm">{o.label}</div>
+                <div className="text-[11px] text-muted-foreground">{o.hint}</div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Tabela */}
+      <details className="mt-5">
+        <summary className="cursor-pointer text-sm font-semibold">Ver todos os produtos rastreados ({tracked.length})</summary>
+        <div className="mt-3 overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="text-left text-[11px] uppercase tracking-wider text-muted-foreground">
+              <tr><th className="py-2">Item</th><th>Barraca</th><th className="text-right">Estoque</th><th className="text-right">Alerta</th><th></th></tr>
+            </thead>
+            <tbody>
+              {tracked.map((p) => {
+                const st = stockStatus(p);
+                return (
+                  <tr key={p.id} className="border-t border-border">
+                    <td className="py-2.5">{p.emoji} {p.name}</td>
+                    <td className="text-muted-foreground">{p.barraca}</td>
+                    <td className={`text-right font-display ${st === "out" ? "text-destructive" : st === "low" ? "text-warning" : ""}`}>{p.stock}</td>
+                    <td className="text-right text-muted-foreground">≤{p.stockAlert ?? 10}</td>
+                    <td className="text-right"><button onClick={() => { setRestockId(p.id); setQty(20); setNote(""); }} className="rounded-full border border-border px-3 py-1 text-[11px] font-semibold">Repor</button></td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </details>
+
+      {/* Histórico de reposições */}
+      {s.stockMoves.length > 0 && (
+        <details className="mt-3">
+          <summary className="cursor-pointer text-sm font-semibold">Histórico de reposições ({s.stockMoves.length})</summary>
+          <ul className="mt-2 space-y-1 text-xs">
+            {s.stockMoves.slice(0, 12).map((m) => {
+              const p = s.products.find((x) => x.id === m.productId);
+              return (
+                <li key={m.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-secondary/50 px-3 py-2">
+                  <span><b>+{m.qty}</b> {p?.emoji} {p?.name ?? "—"}</span>
+                  <span className="text-muted-foreground">{m.by} · {new Date(m.at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}{m.note ? ` · ${m.note}` : ""}</span>
+                </li>
+              );
+            })}
+          </ul>
+        </details>
+      )}
+
+      {target && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-foreground/40 p-4" onClick={() => setRestockId(null)}>
+          <div onClick={(e) => e.stopPropagation()} className="w-full max-w-md rounded-3xl border-2 border-foreground bg-card p-6 shadow-pop">
+            <h3 className="font-serif text-2xl">Repor {target.emoji} {target.name}</h3>
+            <p className="mt-1 text-sm text-muted-foreground">Estoque atual: <b>{target.stock}</b> · alerta ≤ {target.stockAlert ?? 10}</p>
+
+            <label className="mt-4 block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Quantidade a adicionar</label>
+            <input type="number" min={1} value={qty} onChange={(e) => setQty(Math.max(1, Number(e.target.value) || 0))} className="mt-1 w-full rounded-xl border border-border bg-background px-4 py-3 font-display text-2xl text-center" />
+
+            <label className="mt-3 block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Observação (opcional)</label>
+            <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Ex.: chegou caixa nova" className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm" />
+
+            <div className="mt-6 flex justify-end gap-2">
+              <button onClick={() => setRestockId(null)} className="rounded-full border border-border px-4 py-2 text-sm font-semibold">Cancelar</button>
+              <button
+                onClick={() => { try { restockProduct({ productId: target.id, qty, by: me?.name ?? "Admin", note }); setRestockId(null); } catch (e: any) { alert(e.message); } }}
+                className="rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground shadow-pop"
+              >+ {qty} unidades</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}

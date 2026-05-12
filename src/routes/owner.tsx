@@ -54,8 +54,6 @@ const ACTIVITY = [
   { t: "há 6h", who: "Paróquia São José", msg: "configurou Mercado Pago" },
 ];
 
-export default function _() { return null; }
-
 function OwnerPage() {
   const [planFilter, setPlanFilter] = useState<string>("Todos");
   const [statusFilter, setStatusFilter] = useState<string>("Todos");

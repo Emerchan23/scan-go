@@ -78,15 +78,17 @@ export type SplitAccount = {
 type State = {
   user: User;
   products: Product[];
+  barracas: Barraca[];
+  wallets: Wallet[];
   sales: Sale[];
   event: { name: string; date: string; org: string };
-  /** Taxa da plataforma (split). 0.02 = 2%. Configurada pelo dono do SaaS. */
   platformFee: number;
-  /** Política de saldo não consumido. Configurada pelo organizador. */
   policy: CreditPolicy;
-  /** Conta do organizador no Mercado Pago (split). */
   split: SplitAccount;
 };
+
+const KEY_BUMP = "v4";
+void KEY_BUMP;
 
 const initial: State = {
   user: { id: "u_1932", name: "Visitante", balance: 0 },
@@ -95,7 +97,7 @@ const initial: State = {
   policy: {
     mode: "refund",
     refundDays: 7,
-    endsAt: Date.now() + 8 * 60 * 60 * 1000, // termina em ~8h pra demo mostrar contagem
+    endsAt: Date.now() + 8 * 60 * 60 * 1000,
   },
   split: {
     status: "connected",
@@ -114,12 +116,21 @@ const initial: State = {
     { id: "p6", name: "Milho cozido", price: 6, emoji: "🌽", barraca: "Milho", kind: "comida" },
     { id: "p7", name: "Canjica", price: 9, emoji: "🥣", barraca: "Doces", kind: "doce" },
     { id: "p8", name: "Cachorro-quente", price: 14, emoji: "🌭", barraca: "Lanches", kind: "comida" },
-    // Brinquedos / ingressos
     { id: "b1", name: "Cama elástica", price: 15, emoji: "🤸", barraca: "Brinquedos", kind: "brinquedo", durationMin: 10, description: "10 minutos de pulo livre na cama elástica gigante." },
     { id: "b2", name: "Touro mecânico", price: 20, emoji: "🐂", barraca: "Brinquedos", kind: "brinquedo", durationMin: 5, description: "5 minutos no touro — quem aguenta?" },
     { id: "b3", name: "Pintura facial", price: 10, emoji: "🎨", barraca: "Brinquedos", kind: "ingresso", description: "Uma sessão de pintura facial temática." },
     { id: "b4", name: "Pula-pula infantil", price: 12, emoji: "🎈", barraca: "Brinquedos", kind: "brinquedo", durationMin: 15, description: "15 minutos no castelo inflável (até 8 anos)." },
   ],
+  barracas: [
+    { id: "bar_churras",  name: "Churrasquinho", emoji: "🍢", attendant: "Seu Zé",   productIds: ["p1", "p5"] },
+    { id: "bar_pastel",   name: "Pastelaria",    emoji: "🥟", attendant: "Dona Lu",  productIds: ["p2", "p5"] },
+    { id: "bar_doces",    name: "Doces",         emoji: "🍬", attendant: "Marina",   productIds: ["p3", "p7"] },
+    { id: "bar_bebidas",  name: "Bebidas",       emoji: "🥤", attendant: "Carlos",   productIds: ["p4", "p5"] },
+    { id: "bar_milho",    name: "Milho",         emoji: "🌽", attendant: "Ana",      productIds: ["p6"] },
+    { id: "bar_lanches",  name: "Lanches",       emoji: "🌭", attendant: "João",     productIds: ["p8", "p5"] },
+    { id: "bar_brinq",    name: "Brinquedos",    emoji: "🎈", attendant: "Equipe",   productIds: ["b1", "b2", "b3", "b4"] },
+  ],
+  wallets: [],
   sales: [],
 };
 

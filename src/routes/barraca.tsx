@@ -89,11 +89,12 @@ function BarracaApp() {
     setCart([]);
     setSuccess(null);
     setError(null);
+    setFicha(null);
   };
 
   const add = (p: Product) => {
-    if (!scanned) {
-      setError("Escaneie o QR do cliente primeiro");
+    if (!scanned && !ficha) {
+      setError("Escaneie o QR do cliente ou valide a fichinha primeiro");
       return;
     }
     setCart((c) => {
@@ -113,22 +114,35 @@ function BarracaApp() {
   const remove = (id: string) => setCart((c) => c.filter((x) => x.product.id !== id));
 
   const checkout = () => {
-    if (!scanned || cart.length === 0) return;
-    if (s.user.balance < total) {
-      setError(`Saldo insuficiente. Cliente tem R$ ${s.user.balance}`);
+    if (cart.length === 0) return;
+    const balance = ficha ? ficha.wallet.balance : s.user.balance;
+    if (balance < total) {
+      setError(`Saldo insuficiente. ${ficha ? "Ficha" : "Cliente"} tem R$ ${balance}`);
       return;
     }
-    let lastBalance = s.user.balance;
+    let lastBalance = balance;
     try {
       for (const item of cart) {
         for (let i = 0; i < item.qty; i++) {
-          const r = chargeProduct(item.product.id);
+          const r = chargeProduct(item.product.id, ficha?.wallet.code, ficha?.passphrase);
           lastBalance = r.balance;
         }
       }
       setSuccess({ total, balance: lastBalance, items: totalQty });
     } catch (e: any) {
       setError(e.message);
+    }
+  };
+
+  const validateFicha = (code: string, passphrase: string) => {
+    try {
+      const w = verifyWalletAccess(code, passphrase);
+      setFicha({ wallet: w, passphrase: passphrase.trim().toUpperCase() });
+      setScanned(true);
+      setShowFichaModal(false);
+      setError(null);
+    } catch (e: any) {
+      throw e;
     }
   };
 

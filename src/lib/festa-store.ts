@@ -322,6 +322,14 @@ const initial: State = {
   salesStatus: { topUps: "open", charges: "open", walletsActiveAfterClose: true },
   stockMoves: [],
   clientStockVisibility: "esgotado",
+  notifications: [],
+  events: [
+    { id: "ev_main", name: "Arraiá do Sagrado Coração", date: "21 de Junho", org: "Escola Sagrado Coração", status: "active", createdAt: Date.now() },
+  ],
+  currentEventId: "ev_main",
+  shifts: [],
+  bigSpendAlert: 100,
+  theme: "light",
 };
 
 function read(): State {

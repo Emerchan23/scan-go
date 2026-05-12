@@ -174,6 +174,31 @@ export function removeProduct(id: string) {
   write(s);
 }
 
+export function setSplit(patch: Partial<SplitAccount>) {
+  const s = read();
+  s.split = { ...s.split, ...patch };
+  write(s);
+}
+
+export function connectSplit(data: { holder: string; document: string; email: string }) {
+  const s = read();
+  s.split = {
+    status: "connected",
+    holder: data.holder,
+    document: data.document,
+    email: data.email,
+    mpUserId: "MP-" + Math.floor(100000 + Math.random() * 900000),
+    connectedAt: Date.now(),
+  };
+  write(s);
+}
+
+export function disconnectSplit() {
+  const s = read();
+  s.split = { status: "pending", holder: "", document: "", email: "" };
+  write(s);
+}
+
 export function setPolicy(patch: Partial<CreditPolicy>) {
   const s = read();
   s.policy = { ...s.policy, ...patch };
